@@ -6,18 +6,21 @@
 <title>Paper to Diagrams</title>
 <style>
   * { box-sizing:border-box; }
-  body { margin:0; background:#fff; color:#000; font-family:Georgia,'Times New Roman',serif; line-height:1.5; }
+  body { margin:0; background:#fff; color:#000;
+         font-family:'Times New Roman',Times,'Liberation Serif',serif; font-size:16px; line-height:1.5; }
   .wrap { max-width:1000px; margin:0 auto; padding:36px 22px 80px; }
-  h1 { font-size:30px; margin:0 0 4px; }
+  h1 { font-size:30px; margin:0 0 4px; font-family:inherit; }
   .sub { margin:0 0 18px; font-size:15px; }
   #engine { display:inline-block; border:2px solid #000; padding:3px 12px; font-size:13.5px; margin-bottom:18px; }
   #engine.ok { background:#000; color:#fff; }
+  #engine.bad { background:#000; color:#fff; border-style:double; border-width:5px; }
   #drop { display:block; border:2.5px dashed #000; padding:42px 20px; text-align:center; cursor:pointer; transition:background .15s; }
   #drop.over, #drop:hover { background:#000; color:#fff; }
   #drop b { font-size:18px; }
   #drop small { display:block; margin-top:6px; font-size:13px; }
   #file { display:none; }
-  button, .btn { font:inherit; font-size:14px; background:#fff; color:#000; border:2px solid #000; padding:6px 14px; cursor:pointer; text-decoration:none; display:inline-block; }
+  button, .btn { font-family:inherit; font-size:14px; background:#fff; color:#000; border:2px solid #000;
+                 padding:6px 14px; cursor:pointer; text-decoration:none; display:inline-block; }
   button:hover, .btn:hover { background:#000; color:#fff; }
   button.primary { background:#000; color:#fff; }
   button.primary:hover { background:#fff; color:#000; }
@@ -27,7 +30,9 @@
   #bar .track { height:8px; border:1.5px solid #000; margin-top:8px; overflow:hidden; }
   #bar .fill { height:100%; width:30%; background:#000; animation:slide 1.2s linear infinite; }
   @keyframes slide { from { margin-left:-30%; } to { margin-left:100%; } }
-  #err { display:none; margin-top:20px; border:2px solid #000; padding:12px 16px; font-weight:bold; white-space:pre-wrap; }
+  #err { display:none; margin-top:20px; border:2.5px solid #000; padding:12px 16px; font-size:14px; }
+  #err b { display:block; margin-bottom:6px; }
+  #err pre { border:0; padding:0; max-height:220px; overflow:auto; font-size:12.5px; white-space:pre-wrap; }
   #out { display:none; margin-top:34px; }
   .paper { border:2px solid #000; padding:16px 20px; }
   .paper h2 { margin:0 0 6px; font-size:21px; }
@@ -37,25 +42,36 @@
   table { border-collapse:collapse; width:100%; font-size:14px; }
   th, td { border:1.5px solid #000; padding:7px 10px; text-align:left; vertical-align:top; }
   th { background:#000; color:#fff; }
+  tr.low td { background:#f2f2f2; }
+  .conf { font-weight:bold; text-transform:uppercase; font-size:12px; letter-spacing:.04em; }
+  .conf.high::before { content:"● "; }
+  .conf.medium::before { content:"◐ "; }
+  .conf.low::before { content:"○ "; }
   .fig { margin:26px 0 40px; }
   .fig .head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .num { background:#000; color:#fff; font-weight:bold; padding:2px 10px; }
   .fig .ttl { font-size:18px; font-weight:bold; }
   .place { margin:8px 0; border-left:5px solid #000; padding:2px 0 2px 12px; font-size:14.5px; }
+  .warn { border-left:5px solid #000; border-style:dashed; padding:2px 0 2px 12px; font-size:14px; font-style:italic; margin:8px 0; }
   .imgbox { border:2px solid #000; padding:12px; text-align:center; }
   .imgbox img { max-width:100%; height:auto; }
   .cap { font-size:14px; margin:8px 0 6px; }
   .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
   details { border:1.5px solid #000; margin:8px 0; }
   summary { cursor:pointer; padding:7px 12px; font-weight:bold; }
-  pre { margin:0; padding:12px; overflow:auto; max-height:420px; font-size:12px; border-top:1.5px solid #000; background:#fff; }
-  footer { margin-top:50px; font-size:12.5px; }
+  pre { margin:0; padding:12px; overflow:auto; max-height:420px; font-size:12.5px; border-top:1.5px solid #000;
+        background:#fff; font-family:'Times New Roman',Times,'Liberation Serif',serif; white-space:pre; }
+  #advPanel { display:none; margin-top:34px; border:2.5px solid #000; padding:16px 18px; }
+  #advPanel h3 { margin:0 0 6px; font-size:19px; }
+  #advPanel p { margin:0 0 12px; font-size:14.5px; }
+  #adv { display:none; }
+  .badge { border:1.5px solid #000; padding:0 8px; font-size:12.5px; font-weight:bold; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Paper → Diagrams</h1>
-  <p class="sub">Upload one research paper. The embedded Python scripts read it, draw 5 black-and-white diagrams from its own content, and tell you which section each one belongs in. Everything runs inside your browser; the paper is never uploaded anywhere.</p>
+  <p class="sub">Upload one research paper. The embedded Python scripts read it, draw 5 black-and-white diagrams from its own content, rate how much each one can be trusted, and tell you which section each belongs in — then optionally a second pass adds 3 advanced plates. Everything runs inside your browser; the paper is never uploaded anywhere.</p>
   <div id="engine">Starting…</div>
 
   <label id="drop" for="file">
@@ -66,7 +82,7 @@
   <div class="actions"><button id="go" class="primary" disabled>Generate diagrams</button></div>
 
   <div id="bar"><span id="barText"></span><div class="track"><div class="fill"></div></div></div>
-  <div id="err"></div>
+  <div id="err"><b>Start-up error</b><pre id="errText"></pre></div>
 
   <div id="out">
     <div class="paper">
@@ -79,14 +95,22 @@
       <a class="btn" id="dlZip" download="paper_diagrams.zip">Download all (ZIP: PNG, SVG, PDF)</a>
     </div>
     <h3 class="sec">Where each diagram goes</h3>
+    <p style="font-size:14px;margin:0 0 8px">Confidence is the program's own rating of how well the figure is grounded in the text: ● high, ◐ medium, ○ low (shaded rows). Check every low one before submitting.</p>
     <table id="plan"></table>
     <h3 class="sec">Diagrams</h3>
     <div id="figs"></div>
+
+    <div id="advPanel">
+      <h3>Advanced plates</h3>
+      <p>Three further figures built from the same extracted content: an exploded system stack, a concept-adjacency matrix, and a radial taxonomy. Different construction technique from the five above.</p>
+      <div class="actions"><button id="goAdv" class="primary">Generate 3 advanced diagrams</button></div>
+    </div>
+    <h3 class="sec" id="advHead" style="display:none">Advanced diagrams</h3>
+    <div id="adv"></div>
   </div>
 
   <h3 class="sec" style="margin-top:56px">Python scripts inside this file</h3>
   <div id="scripts"></div>
-  <footer>Figures are pure black &amp; white, 300 dpi PNG plus vector SVG/PDF, with no title inside the picture so the caption can live in your manuscript. The Python engine (Pyodide) is downloaded from the jsDelivr CDN on first use, so an internet connection is needed to start.</footer>
 </div>
 
 <script type="text/plain" id="src-paper_parser">"""
@@ -235,8 +259,8 @@ class Paper:
 # --------------------------------------------------------------------------
 # File readers
 # --------------------------------------------------------------------------
-_LIGATURES = {"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl", " ": " ",
-              " ": " ", "​": ""}
+_LIGATURES = {"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl", " ": " ",
+              " ": " ", "​": ""}
 
 
 def _normalise(line: str) -> str:
@@ -466,10 +490,13 @@ Step 2 of the pipeline: turn a parsed Paper into the *content* each diagram
 needs.  Everything is rule-based (no LLM, no network), so it is fast,
 deterministic and works offline.
 
+Every result also carries a provenance note and a confidence rating, so the
+figures can say where their numbers came from and how far they can be trusted.
+
 Produces
     * section_words  - words per section            -> structure chart
-    * concepts/edges - key terms + co-occurrence    -> concept map
-    * steps          - ordered method steps         -> workflow flowchart
+    * concepts/edges - key terms + co-occurrence    -> concept map / matrix / rings
+    * steps          - ordered method steps         -> workflow flowchart / stack
     * results        - table / percentages / terms  -> results chart
     * abstract_parts - problem / approach / ...     -> framework diagram
 """
@@ -527,6 +554,15 @@ small smaller good great like make made makes making take takes taken need needs
 state-of-the-art real-world well-known
 """.split())
 
+# bigrams that are grammatically fine but carry no information as a label
+PHRASE_STOP = {
+    ("state", "art"), ("real", "world"), ("case", "study"), ("related", "work"),
+    ("literature", "review"), ("future", "work"), ("large", "number"), ("high", "accuracy"),
+    ("proposed", "method"), ("proposed", "approach"), ("proposed", "model"),
+    ("neural", "network"), ("machine", "learning"), ("deep", "learning"),
+    ("data", "set"), ("data", "collection"), ("significant", "improvement"),
+}
+
 
 TOKEN = re.compile(r"[A-Za-z]+(?:-[A-Za-z]+)*")
 
@@ -540,6 +576,19 @@ def stem(w: str) -> str:
     return w
 
 
+def sentence_case(phrase: str) -> str:
+    """'graph neural network' -> 'Graph neural network', keeping acronyms intact."""
+    out = []
+    for i, w in enumerate(phrase.split()):
+        if w.isupper() and len(w) > 1:
+            out.append(w)
+        elif i == 0:
+            out.append(w[:1].upper() + w[1:])
+        else:
+            out.append(w.lower())
+    return " ".join(out)
+
+
 # --------------------------------------------------------------------------
 # Result container
 # --------------------------------------------------------------------------
@@ -551,8 +600,11 @@ class Analysis:
     edges: List[Tuple[int, int, int]] = field(default_factory=list)
     steps: List[Dict] = field(default_factory=list)          # {"title", "detail"}
     steps_source: str = ""
+    lane_label: str = ""
     abstract_parts: Dict[str, str] = field(default_factory=dict)
     results: Dict = field(default_factory=dict)
+    hub: str = ""
+    confidence: Dict[str, Tuple[str, str]] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------
@@ -619,11 +671,11 @@ def extract_concepts(paper: Paper, sentences: List[str], k: int = 10):
     for uni_min, bi_min in ((3, 2), (2, 2), (2, 1), (1, 1)):
         cands: Dict[tuple, float] = {}
         for key, c in tri.items():
-            if c >= bi_min:
+            if c >= bi_min and (key[0], key[1]) not in PHRASE_STOP:
                 cands[key] = c * 3.0
                 freq[key] = c
         for key, c in bi.items():
-            if c >= bi_min:
+            if c >= bi_min and key not in PHRASE_STOP:
                 cands[key] = c * 2.0
                 freq[key] = c
         for st, c in uni.items():
@@ -636,7 +688,6 @@ def extract_concepts(paper: Paper, sentences: List[str], k: int = 10):
         ranked = sorted(cands, key=lambda x: (-cands[x], x))
 
         def covered(key, pool):
-            """key is a contiguous part of a longer, similarly frequent selected term"""
             return any(len(b) > len(key) and
                        any(b[i:i + len(key)] == key for i in range(len(b) - len(key) + 1)) and
                        freq[b] >= 0.5 * freq[key] for b in pool)
@@ -654,11 +705,10 @@ def extract_concepts(paper: Paper, sentences: List[str], k: int = 10):
 
     def label_of(key: tuple) -> str:
         best = forms[key].most_common(1)[0][0]
-        return " ".join(w if w.isupper() and len(w) > 1 else w.capitalize() for w in best)
+        return sentence_case(" ".join(best))
 
-    concepts = [{"label": label_of(key), "freq": freq[key]} for key in selected]
+    concepts = [{"label": trim(label_of(key), 34), "freq": freq[key]} for key in selected]
 
-    # sliding window of two sentences for co-occurrence
     present: List[set] = []
     for sent in sentences:
         toks = [(stem(m.group(0).lower())) for m in TOKEN.finditer(sent)
@@ -697,11 +747,11 @@ _LEAD = re.compile(
     r"(?:step|stage|phase)|to (?:do|achieve) this|in addition)[,\s]+", re.I)
 
 
-def shorten(sentence: str, limit: int = 66) -> str:
+def shorten(sentence: str, limit: int = 62) -> str:
     s = _LEAD.sub("", sentence.strip())
     s = re.sub(r"^(?:we|the proposed (?:method|approach|model|system|framework)|our (?:method|approach)) "
                r"(?:then |also |first )?", "", s, flags=re.I)
-    s = re.sub(r"\s*\([^)]{0,60}\)", "", s)          # drop parentheticals
+    s = re.sub(r"\s*\([^)]{0,60}\)", "", s)
     s = s.rstrip(".")
     if len(s) > limit:
         for sep in (r";", r",(?!\d)", r" which ", r" where ", r" that ", r" using ", r" in order to "):
@@ -716,22 +766,20 @@ def shorten(sentence: str, limit: int = 66) -> str:
 def extract_steps(paper: Paper, max_steps: int = 6) -> Tuple[List[Dict], str]:
     secs = paper.by_canon("methodology")
 
-    # (a) sub-section headings are the cleanest description of a workflow
     subs = []
     for sec in secs:
         for sub in sec.subsections:
             title = re.sub(r"^\s*(?:\d+(?:\.\d+)*\.?|[IVX]+\.|[A-Z]\.)\s+", "", sub.heading).strip()
             if title.lower() not in _GENERIC_HEADS and 2 <= len(title) <= 70:
                 first = split_sentences(sub.text)
-                subs.append({"title": trim(title, 48),
-                             "detail": shorten(first[0], 78) if first else ""})
+                subs.append({"title": trim(title, 44),
+                             "detail": shorten(first[0], 74) if first else ""})
     if len(subs) >= 3:
         if len(subs) > max_steps:
             idx = sorted({round(i * (len(subs) - 1) / (max_steps - 1)) for i in range(max_steps)})
             subs = [subs[i] for i in idx]
         return subs, "subsection headings"
 
-    # (b) otherwise pick the most procedural sentences, keep reading order
     text = " ".join(s.text for s in secs) if secs else ""
     sents = split_sentences(text)
     source = "methodology section"
@@ -746,7 +794,7 @@ def extract_steps(paper: Paper, max_steps: int = 6) -> Tuple[List[Dict], str]:
         scored.append((score, i, s))
     top = sorted(sorted(scored, key=lambda x: (-x[0], x[1]))[:max_steps], key=lambda x: x[1])
     steps = [{"title": shorten(s), "detail": ""} for _, _, s in top]
-    if len(steps) < 3:       # last resort: generic research pipeline
+    if len(steps) < 3:
         steps = [{"title": t, "detail": ""} for t in
                  ("Problem definition", "Data collection", "Proposed method", "Experiments", "Analysis")]
         source = "generic template (methodology not detected)"
@@ -772,7 +820,7 @@ _ORDER = ["problem", "approach", "results", "impact"]
 
 def abstract_parts(paper: Paper) -> Dict[str, str]:
     text = paper.abstract
-    if len(text.split()) < 40:           # no real abstract -> use opening of the introduction
+    if len(text.split()) < 40:
         intro = paper.first("introduction")
         text = (text + " " + (intro.text if intro else "")).strip()
         text = " ".join(split_sentences(text)[:8])
@@ -785,20 +833,34 @@ def abstract_parts(paper: Paper) -> Dict[str, str]:
         scores = [len(re.findall(_CUES[k], s, re.I)) for k in _ORDER]
         best = max(range(4), key=lambda j: (scores[j], -abs(j - floor)))
         cat = best if max(scores) > 0 else min(3, int(4 * i / len(sents)))
-        cat = max(cat, floor)            # abstracts are narrated in order
+        cat = max(cat, floor)
         labels.append(cat)
         floor = cat
-    if len(set(labels)) < 3:             # cues too weak -> split by position
+    if len(set(labels)) < 3:
         labels = [min(3, int(4 * i / len(sents))) for i in range(len(sents))]
 
-    parts = {}
+    parts: Dict[str, List[str]] = {k: [] for k in _ORDER}
+    for s, l in zip(sents, labels):
+        parts[_ORDER[l]].append(s)
+
+    # no box repeats a sentence already used in an earlier box
+    used: set = set()
+    out = {}
+    for k in _ORDER:
+        keep = []
+        for s in parts[k]:
+            sig = s.lower()[:60]
+            if sig in used:
+                continue
+            used.add(sig)
+            keep.append(s)
+        out[k] = trim(" ".join(keep), 240) if keep else ""
     for j, k in enumerate(_ORDER):
-        chosen = [s for s, l in zip(sents, labels) if l == j]
-        parts[k] = trim(" ".join(chosen), 230) if chosen else ""
-    for j, k in enumerate(_ORDER):       # never leave a box empty
-        if not parts[k]:
-            parts[k] = parts[_ORDER[max(0, j - 1)]] if j else sents[0]
-    return parts
+        if not out[k]:
+            out[k] = "" if j == 0 else out[_ORDER[j - 1]]
+    if not out["problem"]:
+        out["problem"] = sents[0]
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -811,34 +873,30 @@ _ROW = re.compile(r"^(?P<label>[A-Za-z][A-Za-z0-9_\-+./()& ]{0,44}?)\s+"
 _FIRST_COL = {"model", "method", "algorithm", "approach", "classifier", "technique", "system",
               "dataset", "network", "architecture", "scheme", "metric", "name", "case"}
 
-
-def _to_num(tok: str) -> float:
-    return float(tok.rstrip("%"))
-
-
 _NUM = re.compile(r"^-?\d+(?:\.\d+)?%?$")
 _CELL = re.compile(r"^[A-Za-z][A-Za-z0-9_\-+./()& ]{0,44}$")
 
 
 def _table_rows(lines: List[str]):
-    """Rows as (start, end, label, values). Handles 'CNN 92.1 91.5' on one line and
-    the one-cell-per-line layout that PDF text extraction often produces."""
+    """Rows as (start, end, label, values, raws)."""
     rows, i = [], 0
     while i < len(lines):
         ln = lines[i].strip()
         m = _ROW.match(ln)
-        if m:                                              # horizontal row
+        if m:
             label = m.group("label").strip()
             if not _BAD_LABEL.match(label) and len(label.split()) <= 5:
-                rows.append((i, i + 1, label, [_to_num(n) for n in m.group("nums").split()]))
+                raws = m.group("nums").split()
+                rows.append((i, i + 1, label, [float(r.rstrip("%")) for r in raws], raws))
             i += 1
             continue
         if _CELL.match(ln) and len(ln.split()) <= 5 and not _BAD_LABEL.match(ln):
-            j = i + 1                                      # vertical row
+            j = i + 1
             while j < len(lines) and _NUM.match(lines[j].strip()):
                 j += 1
             if j > i + 1:
-                rows.append((i, j, ln, [_to_num(x.strip()) for x in lines[i + 1:j]]))
+                raws = [x.strip() for x in lines[i + 1:j]]
+                rows.append((i, j, ln, [float(r.rstrip("%")) for r in raws], raws))
                 i = j
                 continue
         i += 1
@@ -846,13 +904,13 @@ def _table_rows(lines: List[str]):
 
 
 def _table_header(lines: List[str], start: int, ncols: int) -> List[str]:
-    if start > 0:                                          # header on a single line
+    if start > 0:
         toks = re.sub(r"\(%\)|%", "", lines[start - 1]).split()
         if toks and toks[0].lower() in _FIRST_COL and len(toks) == ncols + 1:
             toks = toks[1:]
         if len(toks) >= ncols and all(re.match(r"[A-Za-z]", t) for t in toks):
             return toks[-ncols:]
-    for extra in (1, 0):                                   # header, one cell per line
+    for extra in (1, 0):
         k = ncols + extra
         if start - k >= 0:
             cells = [lines[start - k + t].strip() for t in range(k)]
@@ -861,6 +919,14 @@ def _table_header(lines: List[str], start: int, ncols: int) -> List[str]:
                 cells = cells[extra:]
                 return [c.replace("(%)", "").strip() for c in cells]
     return []
+
+
+def _unit_of(raws: List[str], values: List[float]) -> str:
+    if any(r.endswith("%") for r in raws):
+        return "percent"
+    if all(float(v).is_integer() for v in values) and max(values) > 100:
+        return "count"
+    return "score"
 
 
 def _find_table(lines: List[str]) -> Optional[Dict]:
@@ -888,13 +954,17 @@ def _find_table(lines: List[str]) -> Optional[Dict]:
     ncols = len(g[0][3])
     header = _table_header(lines, g[0][0], ncols) or [f"Metric {i + 1}" for i in range(ncols)]
 
-    # keep columns on a comparable scale so one axis can host them all
     ref = max(abs(r[3][0]) for r in g) or 1
     keep = [c for c in range(ncols)
             if 0.2 <= (max(abs(r[3][c]) for r in g) or 1) / ref <= 5][:4] or [0]
     g = g[:10]
+    values = [[r[3][c] for c in keep] for r in g]
+    raws = [[r[4][c] for c in keep] for r in g]
+    flat_raw = [x for row in raws for x in row]
+    flat_val = [x for row in values for x in row]
     return {"kind": "table", "labels": [r[2] for r in g], "series": [header[c] for c in keep],
-            "values": [[r[3][c] for c in keep] for r in g]}
+            "values": values, "unit": _unit_of(flat_raw, flat_val),
+            "source": "table found in the results text"}
 
 
 _PCT = re.compile(r"(\d{1,3}(?:\.\d+)?)\s?%")
@@ -926,7 +996,8 @@ def _find_percentages(sentences: List[str]) -> Optional[Dict]:
                 break
     if len(found) >= 3:
         items = list(found.items())
-        return {"kind": "percent", "labels": [k for k, _ in items], "values": [v for _, v in items]}
+        return {"kind": "percent", "labels": [k for k, _ in items], "values": [v for _, v in items],
+                "unit": "percent", "source": "percentages quoted in the running text"}
     return None
 
 
@@ -936,6 +1007,8 @@ def extract_results(paper: Paper, concepts: List[Dict]) -> Dict:
     table = _find_table(lines) if lines else None
     if not table:
         table = _find_table([l for s in paper.body_sections for l in s.lines])
+        if table:
+            table["source"] = "table found outside the results section"
     if table:
         return table
 
@@ -945,7 +1018,46 @@ def extract_results(paper: Paper, concepts: List[Dict]) -> Dict:
         return pct
 
     top = sorted(concepts, key=lambda c: -c["freq"])[:8]
-    return {"kind": "terms", "labels": [c["label"] for c in top], "values": [c["freq"] for c in top]}
+    return {"kind": "terms", "labels": [c["label"] for c in top], "values": [c["freq"] for c in top],
+            "unit": "count", "source": "term frequency (no numeric results could be parsed)"}
+
+
+# --------------------------------------------------------------------------
+# 6. Self-assessment
+# --------------------------------------------------------------------------
+def _confidence(a: Analysis, paper: Paper) -> Dict[str, Tuple[str, str]]:
+    nsec = len(a.section_words)
+    ncon = len(a.concepts)
+    nedge = len(a.edges)
+    rk = a.results.get("kind")
+    abstract_words = len(paper.abstract.split())
+
+    def lvl(high: bool, mid: bool, why_hi: str, why_mid: str, why_lo: str):
+        return ("high", why_hi) if high else ("medium", why_mid) if mid else ("low", why_lo)
+
+    c: Dict[str, Tuple[str, str]] = {}
+    c["structure"] = lvl(nsec >= 4, nsec >= 2, f"{nsec} sections measured",
+                         f"only {nsec} sections detected",
+                         "almost no section structure detected")
+    c["concepts"] = lvl(ncon >= 8 and nedge >= 6, ncon >= 4,
+                        f"{ncon} terms with {nedge} links", f"only {ncon} terms, {nedge} links",
+                        "concepts too sparse to map")
+    c["workflow"] = lvl(a.steps_source == "subsection headings",
+                        a.steps_source == "methodology section",
+                        "steps read from the paper's own subheadings",
+                        "steps picked from prose, not subheadings",
+                        "no methodology found, generic template used")
+    c["results"] = lvl(rk == "table", rk == "percent",
+                       "values parsed from a real table",
+                       "values scraped from percentages in prose",
+                       "no numbers: bar chart of term frequency")
+    c["framework"] = lvl(abstract_words >= 80, abstract_words >= 40,
+                         "abstract is substantial", "abstract is short",
+                         "no usable abstract, text borrowed from the introduction")
+    c["adv_stack"] = c["workflow"]
+    c["adv_matrix"] = c["concepts"]
+    c["adv_rings"] = c["concepts"]
+    return c
 
 
 # --------------------------------------------------------------------------
@@ -958,8 +1070,11 @@ def analyze(paper: Paper) -> Analysis:
     sents = body_sentences(paper)
     a.concepts, a.edges = extract_concepts(paper, sents)
     a.steps, a.steps_source = extract_steps(paper)
+    msec = paper.first("methodology")
+    a.lane_label = trim(msec.heading, 40) if msec else ""
     a.abstract_parts = abstract_parts(paper)
     a.results = extract_results(paper, a.concepts)
+    a.confidence = _confidence(a, paper)
     return a
 </script>
 <script type="text/plain" id="src-diagram_maker">"""
@@ -968,33 +1083,74 @@ diagram_maker.py
 Step 3 of the pipeline: draw publication-quality diagrams from an Analysis.
 
 Design rules (so the output can go straight into a journal manuscript):
-  * strictly black & white  (pure black ink on white, hatch patterns instead of
-    colour, line-style/line-width instead of colour)
-  * serif font (DejaVu Serif ships with matplotlib, so layout is identical on
-    every machine)
+  * black ink on white with a light draw.io-style canvas grid (minor 0.25",
+    major 1"), hairline frame - the "someone drew this in a diagram editor" look
+  * draw.io shape vocabulary: rounded boxes, decision diamonds, data cylinders,
+    parallelograms, terminal stadiums, dashed containers with header bands,
+    orthogonal right-angle connectors with solid arrowheads, step badges
+  * Times New Roman for every glyph (registered from a TTF at runtime, with
+    metric-compatible fallbacks if the download fails)
+  * text is measured with TextPath advance widths, never guessed from a
+    character count, and boxes are separated by an iterative collision pass
   * 300 dpi PNG + vector SVG + vector PDF for every figure
-  * no title inside the picture - captions belong in the manuscript
+  * nothing written inside the picture except the content itself: no title,
+    no source note - both belong in the manuscript caption
 """
 from __future__ import annotations
 
 import math
+import re
 import textwrap
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
-from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Rectangle  # noqa: E402
-from PIL import Image  # noqa: E402
+from matplotlib import font_manager as fm  # noqa: E402
+from matplotlib.font_manager import FontProperties  # noqa: E402
+from matplotlib.patches import (Circle, Ellipse, FancyArrowPatch,  # noqa: E402
+                                FancyBboxPatch, Polygon, Rectangle)
+from matplotlib.textpath import TextPath  # noqa: E402
+
+try:
+    from PIL import Image
+    HAVE_PIL = True
+except Exception:                        # noqa: BLE001
+    Image = None                         # type: ignore[assignment]
+    HAVE_PIL = False
 
 from analyzer import Analysis, trim  # noqa: E402
 
+FONT_DIR = Path("/app/fonts")
+SERIF_CHAIN = ("Times New Roman", "Tinos", "Nimbus Roman", "Liberation Serif", "DejaVu Serif")
+
+
+def _register_fonts() -> str:
+    try:
+        if FONT_DIR.is_dir():
+            for path in sorted(list(FONT_DIR.glob("*.ttf")) + list(FONT_DIR.glob("*.otf"))):
+                try:
+                    fm.fontManager.addfont(str(path))
+                except Exception:
+                    pass
+        known = {f.name for f in fm.fontManager.ttflist}
+    except Exception:
+        known = set()
+    for cand in SERIF_CHAIN:
+        if cand in known:
+            return cand
+    return "DejaVu Serif"
+
+
+FONT = _register_fonts()
+
 plt.rcParams.update({
-    "font.family": "serif",
-    "font.serif": ["DejaVu Serif"],
+    "font.family": FONT,
+    "font.serif": list(SERIF_CHAIN),
+    "font.size": 10,
     "figure.facecolor": "white",
     "axes.facecolor": "white",
     "savefig.facecolor": "white",
@@ -1003,40 +1159,111 @@ plt.rcParams.update({
     "axes.labelcolor": "black",
     "xtick.color": "black",
     "ytick.color": "black",
-    "hatch.linewidth": 1.0,
-    "axes.linewidth": 1.3,
+    "hatch.linewidth": 0.9,
+    "axes.linewidth": 1.1,
     "svg.fonttype": "path",
     "pdf.fonttype": 42,
 })
 
 HATCHES = ["///", "\\\\\\", "xxx", "...", "---", "|||", "+++", "ooo"]
 BLACK, WHITE = "black", "white"
+GRID_MINOR, GRID_MAJOR, FRAME = "#ececec", "#d2d2d2", "#a8a8a8"
+STEP = 0.25
 
 
 # --------------------------------------------------------------------------
-# helpers
+# measured text
 # --------------------------------------------------------------------------
-def cpl(width_in: float, fs: float, bold: bool = False) -> int:
-    """characters per line that fit in width_in inches (DejaVu Serif is wide)."""
-    return max(6, int(width_in * 72 / (fs * (0.68 if bold else 0.60))))
+def text_w(s: str, fs: float, bold: bool = False) -> float:
+    """Width of s in inches at font size fs, measured from real glyph advances."""
+    if not s:
+        return 0.0
+    try:
+        prop = FontProperties(family=FONT, weight="bold" if bold else "normal")
+        return TextPath((0, 0), s, size=fs, prop=prop).get_extents().width / 72.0
+    except Exception:
+        return len(s) * fs * 0.5 / 72.0
+
+
+def ellipsize(s: str, width_in: float, fs: float, bold: bool = False) -> str:
+    if text_w(s, fs, bold) <= width_in:
+        return s
+    cut = s
+    while cut and text_w(cut + "…", fs, bold) > width_in:
+        cut = cut[:-1]
+    return (cut.rstrip(" ,;:-") + "…") if cut else "…"
 
 
 def wrap(text: str, width_in: float, fs: float, bold: bool = False, max_lines: int | None = None):
-    lines = textwrap.wrap(text, cpl(width_in, fs, bold), break_long_words=False) or [""]
+    words = (text or "").split()
+    lines: List[str] = []
+    cur = ""
+    for w in words:
+        trial = (cur + " " + w).strip()
+        if cur and text_w(trial, fs, bold) > width_in:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = trial
+    if cur:
+        lines.append(cur)
+    lines = lines or [""]
     if max_lines and len(lines) > max_lines:
         lines = lines[:max_lines]
-        lines[-1] = lines[-1].rstrip(" .,;:") + "…"
-    return lines
+        lines[-1] = ellipsize(lines[-1], width_in, fs, bold)
+    return [ellipsize(l, width_in, fs, bold) for l in lines]
+
+
+def fit(text: str, width_in: float, height_in: float, fs_max: float, fs_min: float,
+        bold: bool = False, max_lines: int = 6):
+    """Shrink the font until the wrapped block fits the box. Returns (lines, fs, line_h)."""
+    fs = fs_max
+    while fs > fs_min:
+        lines = wrap(text, width_in, fs, bold, max_lines)
+        lh = fs * 1.32 / 72
+        if len(lines) * lh <= height_in:
+            return lines, fs, lh
+        fs -= 0.4
+    fs = fs_min
+    lines = wrap(text, width_in, fs, bold, max_lines)
+    return lines, fs, fs * 1.32 / 72
+
+
+# --------------------------------------------------------------------------
+# canvas
+# --------------------------------------------------------------------------
+def _grid(ax, w: float, h: float):
+    ax.add_patch(Rectangle((0, 0), w, h, fc=WHITE, ec="none", zorder=-9))
+    for x in np.arange(0, w + 1e-9, STEP):
+        major = abs(x - round(x)) < 1e-6
+        ax.plot([x, x], [0, h], color=GRID_MAJOR if major else GRID_MINOR,
+                lw=0.7 if major else 0.4, zorder=-8)
+    for y in np.arange(0, h + 1e-9, STEP):
+        major = abs(y - round(y)) < 1e-6
+        ax.plot([0, w], [y, y], color=GRID_MAJOR if major else GRID_MINOR,
+                lw=0.7 if major else 0.4, zorder=-8)
+    ax.add_patch(Rectangle((0.004, 0.004), w - 0.008, h - 0.008, fc="none",
+                           ec=FRAME, lw=1.0, zorder=-7))
 
 
 def canvas(w: float, h: float):
-    """Figure whose data coordinates are inches - makes box layout predictable."""
     fig = plt.figure(figsize=(w, h))
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, w)
     ax.set_ylim(0, h)
     ax.axis("off")
+    _grid(ax, w, h)
     return fig, ax
+
+
+def frame_axes(ax):
+    ax.set_axisbelow(True)
+    ax.minorticks_on()
+    ax.grid(which="major", color=GRID_MAJOR, lw=0.7, zorder=0)
+    ax.grid(which="minor", color=GRID_MINOR, lw=0.4, zorder=0)
+    for s in ax.spines.values():
+        s.set_linewidth(1.1)
+        s.set_color(BLACK)
 
 
 def despine(ax):
@@ -1044,10 +1271,110 @@ def despine(ax):
         ax.spines[s].set_visible(False)
 
 
-def arrow(ax, p0, p1, lw=1.7, style="-|>", ms=15, dashed=False):
-    ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle=style, mutation_scale=ms, lw=lw,
+# --------------------------------------------------------------------------
+# shapes
+# --------------------------------------------------------------------------
+def s_round(ax, x, y, w, h, lw=1.8, r=0.13, z=3):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle=f"round,pad=0.02,rounding_size={r}",
+                                fc=WHITE, ec=BLACK, lw=lw, zorder=z))
+
+
+def s_diamond(ax, cx, cy, w, h, lw=1.8, z=3):
+    ax.add_patch(Polygon([(cx, cy + h / 2), (cx + w / 2, cy), (cx, cy - h / 2), (cx - w / 2, cy)],
+                         closed=True, fc=WHITE, ec=BLACK, lw=lw, zorder=z))
+
+
+def s_cyl(ax, x, y, w, h, lw=1.7, z=3):
+    ry = min(0.16, h * 0.16)
+    ax.add_patch(Rectangle((x, y + ry), w, h - 2 * ry, fc=WHITE, ec="none", zorder=z))
+    ax.plot([x, x], [y + ry, y + h - ry], color=BLACK, lw=lw, zorder=z + 1)
+    ax.plot([x + w, x + w], [y + ry, y + h - ry], color=BLACK, lw=lw, zorder=z + 1)
+    ax.add_patch(Ellipse((x + w / 2, y + h - ry), w, 2 * ry, fc=WHITE, ec=BLACK, lw=lw, zorder=z + 1))
+    ax.add_patch(Ellipse((x + w / 2, y + ry), w, 2 * ry, fc=WHITE, ec=BLACK, lw=lw, zorder=z + 1))
+
+
+def s_para(ax, x, y, w, h, k=0.35, lw=1.7, z=3, hatch=None, fc=WHITE):
+    ax.add_patch(Polygon([(x, y), (x + w, y), (x + w + k, y + h), (x + k, y + h)],
+                         closed=True, fc=fc, ec=BLACK, lw=lw, hatch=hatch, zorder=z))
+
+
+def s_term(ax, x, y, w, h, lw=1.8, z=3):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.34",
+                                fc=WHITE, ec=BLACK, lw=lw, zorder=z))
+
+
+def s_container(ax, x, y, w, h, label, lw=1.4, z=2):
+    ax.add_patch(Rectangle((x, y), w, h, fc="none", ec=BLACK, lw=lw,
+                           linestyle=(0, (6, 4)), zorder=z))
+    ax.add_patch(Rectangle((x, y + h - 0.4), w, 0.4, fc=BLACK, ec=BLACK, lw=lw, zorder=z + 1))
+    ax.text(x + 0.14, y + h - 0.2, ellipsize(label, w - 0.3, 9.5, True), color=WHITE,
+            va="center", ha="left", fontsize=9.5, fontweight="bold", zorder=z + 2)
+
+
+def s_badge(ax, x, y, n, r=0.2):
+    ax.add_patch(Circle((x, y), r, fc=BLACK, ec=BLACK, zorder=8))
+    ax.text(x, y - 0.01, str(n), color=WHITE, ha="center", va="center",
+            fontsize=10.5, fontweight="bold", zorder=9)
+
+
+def arrow(ax, p0, p1, lw=1.6, ms=13, dashed=False):
+    ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle="-|>", mutation_scale=ms, lw=lw,
                                  color=BLACK, shrinkA=0, shrinkB=0, zorder=5,
                                  linestyle=(0, (5, 3)) if dashed else "-"))
+
+
+def orth(ax, p0, p1, first="h", lw=1.6, dashed=False, ms=13):
+    (x0, y0), (x1, y1) = p0, p1
+    if first == "h":
+        mx = (x0 + x1) / 2
+        pts = [(x0, y0), (mx, y0), (mx, y1), (x1, y1)]
+    else:
+        my = (y0 + y1) / 2
+        pts = [(x0, y0), (x0, my), (x1, my), (x1, y1)]
+    ax.plot([p[0] for p in pts], [p[1] for p in pts], color=BLACK, lw=lw, zorder=4,
+            solid_capstyle="butt", linestyle=(0, (5, 3)) if dashed else "-")
+    ax.add_patch(FancyArrowPatch(pts[-2], pts[-1], arrowstyle="-|>", mutation_scale=ms,
+                                 lw=lw, color=BLACK, shrinkA=0, shrinkB=0, zorder=5))
+
+
+def separate(pos: Dict[int, Tuple[float, float]], boxes: Dict[int, Tuple], W: float, H: float,
+             pinned: int | None = None, iters: int = 300, gap: float = 0.14):
+    """Push overlapping boxes apart and keep them on the canvas."""
+    ids = [i for i in pos]
+    for _ in range(iters):
+        moved = False
+        for a_i in range(len(ids)):
+            for b_i in range(a_i + 1, len(ids)):
+                a, b = ids[a_i], ids[b_i]
+                ax_, ay = pos[a]
+                bx, by = pos[b]
+                aw, ah = boxes[a][2], boxes[a][3]
+                bw_, bh_ = boxes[b][2], boxes[b][3]
+                ox = (aw + bw_) / 2 + gap - abs(ax_ - bx)
+                oy = (ah + bh_) / 2 + gap - abs(ay - by)
+                if ox > 0 and oy > 0:
+                    moved = True
+                    if ox < oy:
+                        s = (ox / 2) * (1 if ax_ <= bx else -1)
+                        if a != pinned:
+                            pos[a] = (ax_ - s, ay)
+                        if b != pinned:
+                            pos[b] = (bx + s, by)
+                    else:
+                        s = (oy / 2) * (1 if ay <= by else -1)
+                        if a != pinned:
+                            pos[a] = (ax_, ay - s)
+                        if b != pinned:
+                            pos[b] = (bx, by + s)
+        for k in ids:
+            if k == pinned:
+                continue
+            x, y = pos[k]
+            bw_, bh_ = boxes[k][2], boxes[k][3]
+            pos[k] = (min(max(x, bw_ / 2 + 0.22), W - bw_ / 2 - 0.22),
+                      min(max(y, bh_ / 2 + 0.22), H - bh_ / 2 - 0.22))
+        if not moved:
+            break
 
 
 def save_all(fig, outdir: Path, stem: str) -> Dict[str, str]:
@@ -1059,34 +1386,38 @@ def save_all(fig, outdir: Path, stem: str) -> Dict[str, str]:
         fig.savefig(path, bbox_inches="tight", pad_inches=0.15, **kw)
         files[ext] = path.name
     plt.close(fig)
-    png = outdir / files["png"]
-    Image.open(png).convert("L").save(png, dpi=(300, 300), optimize=True)   # guarantee: no colour
+    if HAVE_PIL:
+        try:
+            png = outdir / files["png"]
+            Image.open(png).convert("L").save(png, dpi=(300, 300), optimize=True)
+        except Exception:
+            pass
     return files
 
 
 # --------------------------------------------------------------------------
-# Fig A - paper structure (words per section)
+# Fig A - paper structure
 # --------------------------------------------------------------------------
 def fig_structure(a: Analysis, outdir: Path, stem: str):
-    data = a.section_words
+    data = a.section_words or [("No body sections detected", 1)]
     n = len(data)
     fig, ax = plt.subplots(figsize=(8.6, 0.62 * n + 1.5))
     vals = [v for _, v in data]
+    top = max(vals) or 1
     total = sum(vals) or 1
     for i, (label, v) in enumerate(data):
-        ax.barh(i, v, height=0.62, facecolor=WHITE, edgecolor=BLACK,
-                hatch=HATCHES[i % len(HATCHES)], linewidth=1.4)
-        ax.text(v + max(vals) * 0.015, i, f"{v:,} words ({100 * v / total:.0f}%)",
+        ax.barh(i, v, height=0.6, facecolor=WHITE, edgecolor=BLACK,
+                hatch=HATCHES[i % len(HATCHES)], linewidth=1.4, zorder=3)
+        ax.text(v + top * 0.015, i, f"{v:,} words ({100 * v / total:.0f}%)",
                 va="center", fontsize=9.5)
     ax.set_yticks(range(n))
-    ax.set_yticklabels([d[0] for d in data], fontsize=11)
+    ax.set_yticklabels([ellipsize(d[0], 2.3, 11) for d in data], fontsize=11)
     ax.invert_yaxis()
-    ax.set_xlim(0, max(vals) * 1.42)
+    ax.set_xlim(0, top * 1.42)
     ax.set_xlabel("Length of section (words)", fontsize=10.5)
     ax.tick_params(axis="x", labelsize=9.5, width=1.2)
     ax.tick_params(axis="y", length=0)
-    ax.xaxis.grid(True, linestyle=(0, (1, 4)), color=BLACK, linewidth=0.6)
-    ax.set_axisbelow(True)
+    frame_axes(ax)
     despine(ax)
     fig.tight_layout()
     return save_all(fig, outdir, stem)
@@ -1096,8 +1427,6 @@ def fig_structure(a: Analysis, outdir: Path, stem: str):
 # Fig B - concept map
 # --------------------------------------------------------------------------
 def fig_concepts(a: Analysis, outdir: Path, stem: str):
-    # keep the strongest links, but make sure every drawn concept keeps its best link;
-    # concepts that never co-occur with another one are left out of the map
     all_edges = sorted(a.edges, key=lambda e: -e[2])
     keep = {(i, j, w) for i, j, w in all_edges[:12]}
     best_of = {}
@@ -1107,123 +1436,144 @@ def fig_concepts(a: Analysis, outdir: Path, stem: str):
     keep |= set(best_of.values())
     used = sorted({i for e in keep for i in e[:2]})
     remap = {old: new for new, old in enumerate(used)}
-    C = [a.concepts[i] for i in used] or a.concepts
+    C = [a.concepts[i] for i in used] or a.concepts or [{"label": "No concept detected", "freq": 1}]
     edges = sorted(((remap[i], remap[j], w) for i, j, w in keep), key=lambda e: -e[2])
     n = len(C)
-    W, H = 10.0, 6.8
+    W, H = 10.0, 6.9
     fig, ax = canvas(W, H)
+
     freq = np.array([c["freq"] for c in C], float)
     wmat = np.zeros((n, n))
     for i, j, w in edges:
         wmat[i, j] = wmat[j, i] = w
     multi = np.array([1.0 if " " in c["label"] else 0.0 for c in C])
     center = int(np.argmax(wmat.sum(axis=1) * (1 + multi) + freq * 0.01))
-    rem = {i for i in range(n) if i != center}
-    order: List[int] = []
-    cur = max(rem, key=lambda i: (wmat[center, i], wmat[i].sum())) if rem else None
-    while rem:
-        order.append(cur)
-        rem.remove(cur)
-        if rem:
-            cur = max(rem, key=lambda i: (wmat[order[-1], i], wmat[i].sum()))
-    pos = {center: (W / 2, H / 2)}
-    rx, ry = 3.55, 2.5
-    for k, i in enumerate(order):
-        ang = math.pi / 2 - 2 * math.pi * (k + 0.5) / max(len(order), 1)
-        pos[i] = (W / 2 + rx * math.cos(ang), H / 2 + ry * math.sin(ang))
 
-    # node boxes
     boxes = {}
     for i, c in enumerate(C):
-        fs = 12.5 if i == center else 10.5
-        lines = wrap(c["label"], 1.7, fs, bold=(i == center), max_lines=3)
-        lh = fs * 1.3 / 72
-        w = max(len(l) for l in lines) * fs * (0.68 if i == center else 0.60) / 72 + 0.4
-        h = len(lines) * lh + 0.3
+        fs0 = 12.0 if i == center else 10.2
+        lines, fs, lh = fit(c["label"], 1.75, 0.9, fs0, 8.2, bold=(i == center), max_lines=3)
+        w = max(text_w(l, fs, i == center) for l in lines) + 0.42
+        h = len(lines) * lh + 0.34
         boxes[i] = (lines, fs, w, h, lh)
 
-    # edges first (below the boxes)
+    rem = [i for i in range(n) if i != center]
+    rem.sort(key=lambda i: -(wmat[center, i] * 2 + wmat[i].sum()))
+    pos = {center: (W / 2, H / 2)}
+    rx, ry = 3.5, 2.55
+    for k, i in enumerate(rem):
+        ang = math.pi / 2 - 2 * math.pi * (k + 0.5) / max(len(rem), 1)
+        pos[i] = (W / 2 + rx * math.cos(ang), H / 2 + ry * math.sin(ang))
+    separate(pos, boxes, W, H, pinned=center)
+
     if edges:
         wmax = max(e[2] for e in edges)
         med = float(np.median([e[2] for e in edges]))
         for i, j, w in edges:
             (x0, y0), (x1, y1) = pos[i], pos[j]
-            ax.plot([x0, x1], [y0, y1], color=BLACK, lw=0.8 + 3.4 * w / wmax,
+            ax.plot([x0, x1], [y0, y1], color=BLACK, lw=0.8 + 3.0 * w / wmax,
                     linestyle="-" if w > med else (0, (5, 3)), zorder=1, solid_capstyle="butt")
 
     fmax = freq.max() or 1
     for i, c in enumerate(C):
         lines, fs, w, h, lh = boxes[i]
         x, y = pos[i]
-        lw = 1.2 + 2.2 * freq[i] / fmax
-        if i == center:
-            ax.add_patch(FancyBboxPatch((x - w / 2 - 0.09, y - h / 2 - 0.09), w + 0.18, h + 0.18,
-                                        boxstyle="round,pad=0.02,rounding_size=0.2",
-                                        fc=WHITE, ec=BLACK, lw=1.2, zorder=2))
-        ax.add_patch(FancyBboxPatch((x - w / 2, y - h / 2), w, h,
-                                    boxstyle="round,pad=0.02,rounding_size=0.18",
-                                    fc=WHITE, ec=BLACK, lw=lw, zorder=3))
+        s_round(ax, x - w / 2, y - h / 2, w, h, lw=1.1 + 2.0 * freq[i] / fmax, r=0.18, z=3)
         top = y + len(lines) * lh / 2
         for k, ln in enumerate(lines):
             ax.text(x, top - (k + 0.5) * lh, ln, ha="center", va="center", fontsize=fs,
                     fontweight="bold" if i == center else "normal", zorder=4)
-
-    ax.text(0.15, 0.15, "Line thickness (solid = strong, dashed = weak): co-occurrence of two concepts.   "
-            "Border thickness: frequency of the concept.", fontsize=8.3, va="bottom", ha="left")
     return save_all(fig, outdir, stem)
 
 
 # --------------------------------------------------------------------------
-# Fig C - methodology flowchart
+# Fig C - methodology flow
 # --------------------------------------------------------------------------
+_DECISION = re.compile(r"^(if|when|unless|check|verify|test|until|while)\b|"
+                       r"\b(threshold|satisf|meets?|exceeds?)\b", re.I)
+
+
 def fig_workflow(a: Analysis, outdir: Path, stem: str):
-    steps = a.steps
+    steps = list(a.steps) or [{"title": "Step", "detail": ""}]
     n = len(steps)
-    cols = n if n <= 3 else (2 if n == 4 else 3)
+    idx = next((i for i, s in enumerate(steps) if _DECISION.search(s["title"])), None)
+
+    cols = 3 if n > 2 else max(n, 1)
     rows = math.ceil(n / cols)
-    bw, bh, gx, gy, m = 3.1, 1.7, 0.85, 0.9, 0.45
-    W = cols * bw + (cols - 1) * gx + 2 * m
-    H = rows * bh + (rows - 1) * gy + 2 * m
+    bw, bh, gx, pad, head, gap, m = 2.9, 1.55, 0.78, 0.4, 0.42, 0.5, 0.45
+    mt = mb = 1.0
+    cw = cols * bw + (cols - 1) * gx + 2 * pad
+    ch = head + bh + 2 * pad
+    W = cw + 2 * m
+    H = mt + rows * ch + (rows - 1) * gap + mb
     fig, ax = canvas(W, H)
 
-    origin = []
-    for i in range(n):
-        r, c = divmod(i, cols)
-        if r % 2 == 1:                       # serpentine: row 2 runs right -> left
-            c = cols - 1 - c
-        origin.append((m + c * (bw + gx), H - m - bh - r * (bh + gy)))
+    centers: List[Tuple[float, float]] = []
+    for r in range(rows):
+        cy = H - mt - (r + 1) * ch - r * gap
+        lane = a.lane_label if (rows == 1 and a.lane_label) else f"PHASE {r + 1}"
+        s_container(ax, m, cy, cw, ch, lane)
+        for c in range(cols):
+            i = r * cols + c
+            if i >= n:
+                break
+            cc = cols - 1 - c if r % 2 else c
+            x = m + pad + cc * (bw + gx)
+            y = cy + pad
+            centers.append((x + bw / 2, y + bh / 2))
+            if i == idx:
+                s_diamond(ax, x + bw / 2, y + bh / 2, bw * 0.88, bh * 0.96, lw=1.9)
+            elif i == 0:
+                s_term(ax, x, y, bw, bh, lw=1.9)
+            else:
+                s_round(ax, x, y, bw, bh, lw=1.9)
 
-    for i, (st, (x, y)) in enumerate(zip(steps, origin)):
-        ax.add_patch(FancyBboxPatch((x, y), bw, bh, boxstyle="round,pad=0.02,rounding_size=0.14",
-                                    fc=WHITE, ec=BLACK, lw=1.9, zorder=2))
-        # text block, vertically centred
-        tfs, dfs = 10.8, 8.6
-        has_detail = bool(st.get("detail"))
-        tl = wrap(st["title"], bw - 0.55, tfs, bold=has_detail, max_lines=3 if has_detail else 4)
-        dl = wrap(st["detail"], bw - 0.55, dfs, max_lines=3) if has_detail else []
-        lh_t, lh_d = tfs * 1.3 / 72, dfs * 1.3 / 72
-        total = len(tl) * lh_t + (0.1 + len(dl) * lh_d if dl else 0)
-        ytop = y + bh / 2 + total / 2
-        for k, ln in enumerate(tl):
-            ax.text(x + bw / 2, ytop - (k + 0.5) * lh_t, ln, ha="center", va="center",
-                    fontsize=tfs, fontweight="bold" if has_detail else "normal", zorder=4)
-        for k, ln in enumerate(dl):
-            ax.text(x + bw / 2, ytop - len(tl) * lh_t - 0.1 - (k + 0.5) * lh_d, ln, ha="center",
-                    va="center", fontsize=dfs, style="italic", zorder=4)
-        ax.add_patch(Circle((x + 0.02, y + bh - 0.02), 0.2, fc=BLACK, ec=BLACK, zorder=6))
-        ax.text(x + 0.02, y + bh - 0.025, str(i + 1), color=WHITE, ha="center", va="center",
-                fontsize=11, fontweight="bold", zorder=7)
+            has_detail = bool(steps[i].get("detail"))
+            box_w = bw - 0.62
+            if i == idx:
+                box_w = bw * 0.52
+            tl, fs, lh_t = fit(steps[i]["title"], box_w, bh * 0.72, 10.4, 7.6,
+                               bold=has_detail, max_lines=3)
+            dl = []
+            if has_detail and i != idx:
+                dl, _, lh_d = fit(steps[i]["detail"], box_w, 0.5, 8.4, 6.8, max_lines=2)
+            total = len(tl) * lh_t + (0.08 + len(dl) * 8.4 * 1.32 / 72 if dl else 0)
+            ytop = y + bh / 2 + total / 2
+            for k, ln in enumerate(tl):
+                ax.text(x + bw / 2, ytop - (k + 0.5) * lh_t, ln, ha="center", va="center",
+                        fontsize=fs, fontweight="bold" if has_detail else "normal", zorder=4)
+            for k, ln in enumerate(dl):
+                ax.text(x + bw / 2, ytop - len(tl) * lh_t - 0.08 - (k + 0.5) * 8.4 * 1.32 / 72,
+                        ln, ha="center", va="center", fontsize=8.4, style="italic", zorder=4)
+            s_badge(ax, x + 0.02, y + bh - 0.02, i + 1)
+
+    sx, _ = centers[0]
+    s_term(ax, sx - 0.62, H - mt + 0.3, 1.24, 0.46)
+    ax.text(sx, H - mt + 0.53, "START", ha="center", va="center", fontsize=9.5, fontweight="bold")
+    arrow(ax, (sx, H - mt + 0.3), (sx, centers[0][1] + bh / 2 + 0.12))
+    ex, ey = centers[-1]
+    s_term(ax, ex - 0.62, m - 0.86, 1.24, 0.46)
+    ax.text(ex, m - 0.63, "END", ha="center", va="center", fontsize=9.5, fontweight="bold")
+    arrow(ax, (ex, ey - bh / 2 - 0.12), (ex, m - 0.4))
 
     for i in range(n - 1):
-        (x0, y0), (x1, y1) = origin[i], origin[i + 1]
-        if abs(y0 - y1) < 1e-6:              # same row
-            yc = y0 + bh / 2
+        (x0, y0), (x1, y1) = centers[i], centers[i + 1]
+        if abs(y0 - y1) < 1e-6:
             if x1 > x0:
-                arrow(ax, (x0 + bw, yc), (x1, yc))
+                arrow(ax, (x0 + bw / 2, y0), (x1 - bw / 2, y1))
             else:
-                arrow(ax, (x0, yc), (x1 + bw, yc))
-        else:                                # drop to next row
-            arrow(ax, (x0 + bw / 2, y0), (x1 + bw / 2, y1 + bh))
+                arrow(ax, (x0 - bw / 2, y0), (x1 + bw / 2, y1))
+        else:
+            arrow(ax, (x0, y0 - bh / 2), (x1, y1 + bh / 2))
+
+    if idx is not None and idx < n - 1:
+        dx, dy = centers[idx]
+        ax.text(dx + 0.26, dy - bh / 2 - 0.16, "yes", fontsize=8.6, style="italic")
+        nx, ny = dx, dy - bh / 2 - 0.74
+        s_round(ax, nx - 0.98, ny - 0.25, 1.96, 0.5, lw=1.3, r=0.1)
+        ax.text(nx, ny, "Revise and iterate", ha="center", va="center", fontsize=8.6, style="italic")
+        orth(ax, (dx, dy - bh / 2), (nx, ny + 0.25), first="v", lw=1.3, dashed=True)
+        ax.text(dx - 0.26, dy - bh / 2 - 0.16, "no", fontsize=8.6, style="italic", ha="right")
     return save_all(fig, outdir, stem)
 
 
@@ -1234,15 +1584,23 @@ def _style(i: int):
     return [(BLACK, ""), (WHITE, "///"), (WHITE, "xxx"), (WHITE, "...")][i % 4]
 
 
+_UNIT_AXIS = {"percent": "Reported value (%)", "count": "Count", "score": "Reported value"}
+
+
 def fig_results(a: Analysis, outdir: Path, stem: str):
-    r = a.results
-    kind, labels, values = r["kind"], r["labels"], r["values"]
+    r = a.results or {"kind": "terms", "labels": [], "values": [], "unit": "count", "source": ""}
+    kind = r.get("kind", "terms")
+    labels, values = r.get("labels", []), r.get("values", [])
+    unit = r.get("unit", "score")
+    if not labels:
+        labels, values, kind, unit = ["No data"], [1], "terms", "count"
 
     if kind == "table":
         n, m = len(labels), len(r["series"])
         fig, ax = plt.subplots(figsize=(max(7.6, 1.15 * n + 1.2 * m), 5.0))
         bw = 0.8 / m
         rotate = n * m > 18
+        vmax = max(max(rw) for rw in values) or 1
         for s in range(m):
             fc, hatch = _style(s)
             xs = np.arange(n) + (s - (m - 1) / 2) * bw
@@ -1250,36 +1608,37 @@ def fig_results(a: Analysis, outdir: Path, stem: str):
             ax.bar(xs, vals, width=bw * 0.92, facecolor=fc, edgecolor=BLACK, hatch=hatch,
                    linewidth=1.3, label=r["series"][s], zorder=3)
             for x, v in zip(xs, vals):
-                ax.text(x, v + 0.012 * max(max(rw) for rw in values), f"{v:g}", ha="center",
-                        va="bottom", fontsize=7.6, rotation=90 if rotate else 0)
+                ax.text(x, v + 0.012 * vmax, f"{v:g}", ha="center", va="bottom",
+                        fontsize=7.6, rotation=90 if rotate else 0)
         ax.set_xticks(range(n))
         ax.set_xticklabels(["\n".join(wrap(l, 1.0, 9.5, max_lines=3)) for l in labels], fontsize=9.5)
-        top = max(max(rw) for rw in values)
-        head = 1.1 if top <= 100 else 1.22
-        ax.set_ylim(0, min(top * (head + (0.08 if rotate else 0)), 108) if top <= 100 else top * head)
-        if top <= 100:
+        if unit == "percent":
+            ax.set_ylim(0, 112)
             ax.set_yticks(range(0, 101, 20))
-        ax.set_ylabel("Score (%)" if top <= 100 else "Value", fontsize=10.5)
+        else:
+            ax.set_ylim(0, vmax * 1.22)
+        ax.set_ylabel(_UNIT_AXIS.get(unit, "Value"), fontsize=10.5)
         if m > 1:
-            ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=m, frameon=False, fontsize=9.5,
-                      handlelength=2.4)
-        ax.yaxis.grid(True, linestyle=(0, (1, 4)), color=BLACK, linewidth=0.6, zorder=0)
+            ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=m, frameon=False,
+                      fontsize=9.5, handlelength=2.4)
+        frame_axes(ax)
     else:
         n = len(labels)
-        fig, ax = plt.subplots(figsize=(8.4, 0.58 * n + 1.5))
-        top = max(values)
+        fig, ax = plt.subplots(figsize=(8.4, 0.58 * n + 1.6))
+        top = max(values) or 1
         for i, v in enumerate(values):
-            ax.barh(i, v, height=0.6, facecolor=WHITE, edgecolor=BLACK, hatch=HATCHES[i % len(HATCHES)],
-                    linewidth=1.4, zorder=3)
-            ax.text(v + top * 0.015, i, f"{v:g}{'%' if kind == 'percent' else ''}", va="center", fontsize=9.5)
+            ax.barh(i, v, height=0.58, facecolor=WHITE, edgecolor=BLACK,
+                    hatch=HATCHES[i % len(HATCHES)], linewidth=1.4, zorder=3)
+            suffix = "%" if unit == "percent" else ""
+            ax.text(v + top * 0.015, i, f"{v:g}{suffix}", va="center", fontsize=9.5)
         ax.set_yticks(range(n))
         ax.set_yticklabels(["\n".join(wrap(l, 2.2, 10, max_lines=2)) for l in labels], fontsize=10)
         ax.invert_yaxis()
-        ax.set_xlim(0, top * 1.18)
-        ax.set_xlabel({"percent": "Reported value (%)", "terms": "Occurrences in the paper"}[kind],
-                      fontsize=10.5)
+        ax.set_xlim(0, top * 1.2)
+        ax.set_xlabel(_UNIT_AXIS.get(unit, "Value"), fontsize=10.5)
         ax.tick_params(axis="y", length=0)
-        ax.xaxis.grid(True, linestyle=(0, (1, 4)), color=BLACK, linewidth=0.6, zorder=0)
+        frame_axes(ax)
+        ax.tick_params(axis="x", which="minor", bottom=False)
     ax.tick_params(labelsize=9.5, width=1.2)
     despine(ax)
     fig.tight_layout()
@@ -1287,35 +1646,278 @@ def fig_results(a: Analysis, outdir: Path, stem: str):
 
 
 # --------------------------------------------------------------------------
-# Fig E - conceptual framework (problem -> approach -> results -> impact)
+# Fig E - conceptual framework
 # --------------------------------------------------------------------------
 def fig_framework(a: Analysis, outdir: Path, stem: str):
-    heads = [("PROBLEM", "problem"), ("APPROACH", "approach"), ("RESULTS", "results"), ("IMPACT", "impact")]
-    bw, hh, gx, m = 2.65, 0.55, 0.6, 0.35
-    fs = 9.4
-    lh = fs * 1.34 / 72
-    wrapped = {k: wrap(a.abstract_parts.get(k, ""), bw - 0.38, fs, max_lines=13) for _, k in heads}
-    bh = hh + 0.45 + max(len(v) for v in wrapped.values()) * lh
-    bh = max(bh, 2.3)
+    heads = [("PROBLEM", "problem"), ("APPROACH", "approach"),
+             ("RESULTS", "results"), ("IMPACT", "impact")]
+    bw, hh, gx, m = 2.7, 0.55, 0.58, 0.4
+    body_fs = 9.0
+    body_w = bw - 0.5
+
+    wrapped = {}
+    for _, k in heads:
+        lines, _, lh = fit(a.abstract_parts.get(k, ""), body_w, 3.6, body_fs, 7.4, max_lines=14)
+        wrapped[k] = (lines, lh)
+    tallest = max(len(v[0]) * v[1] for v in wrapped.values())
+    bh = max(hh + 0.45 + tallest, 2.5)
     W, H = 4 * bw + 3 * gx + 2 * m, bh + 2 * m
     fig, ax = canvas(W, H)
+
     for i, (title, key) in enumerate(heads):
         x, y = m + i * (bw + gx), m
-        ax.add_patch(Rectangle((x, y), bw, bh, fc=WHITE, ec=BLACK, lw=1.9, zorder=2))
-        ax.add_patch(Rectangle((x, y + bh - hh), bw, hh, fc=BLACK, ec=BLACK, lw=1.9, zorder=3))
-        ax.text(x + bw / 2, y + bh - hh / 2, title, color=WHITE, ha="center", va="center",
-                fontsize=12, fontweight="bold", zorder=4)
-        lines = wrapped[key]
+        if i == 1:
+            s_round(ax, x, y, bw, bh, lw=1.9, r=0.1)
+        elif i == 2:
+            s_cyl(ax, x, y, bw, bh, lw=1.9)
+        else:
+            s_para(ax, x, y, bw, bh, k=0.22, lw=1.9)
+        dx = 0.2 if i in (0, 3) else 0.0
+        ax.add_patch(Rectangle((x + dx, y + bh - hh), bw, hh, fc=BLACK, ec=BLACK, lw=1.9, zorder=4))
+        ax.text(x + bw / 2 + dx / 2, y + bh - hh / 2, title, color=WHITE, ha="center",
+                va="center", fontsize=12, fontweight="bold", zorder=5)
+        lines, lh = wrapped[key]
         for k, ln in enumerate(lines):
-            ax.text(x + 0.19, y + bh - hh - 0.2 - k * lh, ln, ha="left", va="top", fontsize=fs, zorder=4)
+            ax.text(x + 0.22 + dx, y + bh - hh - 0.24 - k * lh, ln, ha="left", va="top",
+                    fontsize=body_fs, zorder=5)
         if i < 3:
-            arrow(ax, (x + bw + 0.04, y + bh / 2 - hh / 2), (x + bw + gx - 0.04, y + bh / 2 - hh / 2),
-                  lw=2.2, ms=18)
+            orth(ax, (x + bw + 0.05, y + bh / 2 - hh / 2), (x + bw + gx - 0.05, y + bh / 2 - hh / 2),
+                 first="h", lw=2.0, ms=17)
+    return save_all(fig, outdir, stem)
+
+
+# ==========================================================================
+# ADVANCED PLATES
+# ==========================================================================
+# section labels that say nothing when used as a node in a taxonomy
+_STRUCTURAL = {"abstract", "introduction", "conclusion", "conclusions", "references",
+               "acknowledgements", "front matter", "other sections", "bibliography"}
+
+_CHAPTER_PREFIX = re.compile(
+    r"^\s*(?:chapter|chap\.?|part|unit|section|module|lesson|week)\s*"
+    r"(?:[0-9]+|[ivxlcdm]+)?\s*[:.\-–—]?\s*", re.I)
+
+
+def clean_hub(title: str, fallback: str) -> str:
+    """Strip numbering and cut on a word boundary - never leave a mid-word ellipsis."""
+    t = re.sub(r"\s+", " ", title or "").strip()
+    for _ in range(2):
+        t = _CHAPTER_PREFIX.sub("", t)
+    t = t.strip(" .:;,-–—")
+    words = t.split()
+    if len(words) > 6:
+        t = " ".join(words[:6]).rstrip(" ,;:-")
+    if len(t) < 5:
+        t = fallback or "Core contribution"
+    return t
+
+
+def _padded(a: Analysis, n: int) -> List[Tuple[str, int]]:
+    """(label, weight) pairs; structural section names are used only as a last resort."""
+    out = [(c["label"], c["freq"]) for c in sorted(a.concepts, key=lambda c: -c["freq"])]
+    seen = {lbl.lower().strip() for lbl, _ in out}
+
+    def add(lbl: str, w: int):
+        k = lbl.lower().strip()
+        if k and k not in seen:
+            out.append((lbl, w))
+            seen.add(k)
+
+    for s in a.steps:
+        if len(out) >= n:
+            break
+        add(s["title"], 1)
+    for lbl, w in a.section_words:
+        if len(out) >= n:
+            break
+        if lbl.lower() in _STRUCTURAL:
+            continue
+        add(lbl, max(1, w // 40))
+    return out[:n]
+
+
+def _weights(a: Analysis, n: int) -> np.ndarray:
+    m = np.zeros((n, n))
+    for i, j, w in a.edges:
+        if i < n and j < n:
+            m[i, j] = m[j, i] = w
+    return m
+
+
+# --------------------------------------------------------------------------
+# Advanced 1 - exploded 2.5D stack
+# --------------------------------------------------------------------------
+def fig_adv_stack(a: Analysis, outdir: Path, stem: str):
+    base_steps = a.steps or [{"title": "Component", "detail": ""}]
+    steps = base_steps[:5][::-1]            # bottom of the stack first
+    n = len(steps)
+    W = 9.6
+    slab_h, slab_w, skew = 0.64, 3.2, 0.55
+    base_y, step_y, step_x = 1.2, 1.02, 0.42
+    H = base_y + n * step_y + 1.5
+    fig, ax = canvas(W, H)
+
+    x0 = 1.05
+    guide_x = x0 + slab_w + skew + 0.42
+    ax.plot([guide_x, guide_x], [base_y - 0.2, base_y + n * step_y + 0.4],
+            color=BLACK, lw=0.7, linestyle=(0, (2, 4)), zorder=1)
+
+    s_para(ax, x0 - 0.45, base_y - 0.66, slab_w + 0.9, slab_h, k=skew, lw=1.8, hatch="...", z=2)
+    ax.text(x0 + (slab_w + 0.9) / 2, base_y - 0.34, "FOUNDATION", ha="center", va="center",
+            fontsize=9.5, fontweight="bold", zorder=4)
+
+    for i, st in enumerate(steps):
+        y = base_y + i * step_y
+        x = x0 + i * step_x
+        s_para(ax, x, y, slab_w, slab_h, k=skew, lw=1.8, hatch=HATCHES[i % len(HATCHES)], z=3)
+        s_badge(ax, x + 0.17, y + slab_h - 0.15, i + 1)   # 1 at the bottom, rising
+        ax.plot([x + slab_w + skew, guide_x + 0.32], [y + slab_h / 2, y + slab_h / 2],
+                color=BLACK, lw=0.8, zorder=1)
+        lines, fs, lh = fit(st["title"], 3.3, 0.62, 10.2, 8.0, bold=True, max_lines=2)
+        ty = y + slab_h / 2 + (len(lines) - 1) * lh / 2
+        for k, ln in enumerate(lines):
+            ax.text(guide_x + 0.42, ty - k * lh, ln, ha="left", va="center", fontsize=fs,
+                    fontweight="bold", zorder=5)
+
+    for i in range(n - 1):
+        xa = x0 + i * step_x + slab_w / 2 + 0.18
+        arrow(ax, (xa, base_y + i * step_y + slab_h + 0.02),
+              (xa + step_x, base_y + (i + 1) * step_y - 0.02), lw=1.4, ms=11)
     return save_all(fig, outdir, stem)
 
 
 # --------------------------------------------------------------------------
-# Public entry point
+# Advanced 2 - concept adjacency matrix
+# --------------------------------------------------------------------------
+def fig_adv_matrix(a: Analysis, outdir: Path, stem: str):
+    pairs = [p for p in _padded(a, 12) if p[1] > 0]
+    M0 = _weights(a, len(pairs))
+    keep = [i for i in range(len(pairs)) if M0[i].sum() > 0] or list(range(min(4, len(pairs))))
+    keep = keep[:9]
+    labels = [pairs[i][0] for i in keep]
+    n = len(labels)
+    M = M0[np.ix_(keep, keep)]
+
+    cell = 0.55
+    left = max(1.6, max((text_w(l, 9.0) for l in labels), default=1.2) + 0.45)
+    W = left + n * cell + 1.5
+    H = n * cell + 3.9
+    fig, ax = canvas(W, H)
+    gx0, gy0 = left, 1.9
+    vmax = M.max() or 1
+    row_sum = M.sum(axis=1)
+    col_sum = M.sum(axis=0)
+    rmax = row_sum.max() or 1
+    cmax = col_sum.max() or 1
+
+    for i in range(n):
+        for j in range(n):
+            x = gx0 + j * cell
+            y = gy0 + (n - 1 - i) * cell
+            if i == j:
+                ax.add_patch(Rectangle((x, y), cell, cell, fc=WHITE, ec=BLACK, lw=0.7, zorder=2))
+                ax.plot([x, x + cell], [y, y + cell], color=BLACK, lw=0.6, zorder=3)
+                ax.plot([x, x + cell], [y + cell, y], color=BLACK, lw=0.6, zorder=3)
+                continue
+            w = M[i, j]
+            shade = 1.0 - 0.72 * (w / vmax)
+            ax.add_patch(Rectangle((x, y), cell, cell, fc=str(shade), ec=BLACK, lw=0.6,
+                                   hatch="xxx" if w / vmax > 0.66 else None, zorder=2))
+            if w:
+                ax.text(x + cell / 2, y + cell / 2, f"{w:g}", ha="center", va="center",
+                        fontsize=7.4, color=WHITE if shade < 0.42 else BLACK, zorder=4)
+
+    for i in range(n):
+        ax.text(gx0 - 0.14, gy0 + (n - 1 - i) * cell + cell / 2, ellipsize(labels[i], left - 0.3, 9.0),
+                ha="right", va="center", fontsize=9)
+        ax.text(gx0 + i * cell + cell / 2, gy0 + n * cell + 0.14, labels[i], ha="left",
+                va="bottom", fontsize=9, rotation=45, rotation_mode="anchor")
+        rw = 0.35 + 0.8 * (row_sum[i] / rmax)
+        ax.add_patch(Rectangle((gx0 + n * cell + 0.3, gy0 + (n - 1 - i) * cell + 0.1),
+                               rw, cell - 0.2, fc=WHITE, ec=BLACK, lw=0.9, hatch="///", zorder=2))
+        cw = 0.35 + 0.8 * (col_sum[i] / cmax)
+        ax.add_patch(Rectangle((gx0 + i * cell + 0.1, gy0 + n * cell + 0.55),
+                               cell - 0.2, cw, fc=WHITE, ec=BLACK, lw=0.9, hatch="\\\\\\", zorder=2))
+
+    ax.add_patch(Rectangle((gx0, gy0), n * cell, n * cell, fc="none", ec=BLACK, lw=1.4, zorder=5))
+    return save_all(fig, outdir, stem)
+
+
+# --------------------------------------------------------------------------
+# Advanced 3 - radial taxonomy
+# --------------------------------------------------------------------------
+def fig_adv_rings(a: Analysis, outdir: Path, stem: str):
+    avail = [p for p in _padded(a, 15) if p[0]]
+    if len(avail) < 4:
+        avail += [("Term %d" % (i + 1), 1) for i in range(4 - len(avail))]
+    labels = [lbl for lbl, _ in avail]
+    fmax = max(w for _, w in avail) or 1
+    weights = [w for _, w in avail]
+
+    ring_counts = [3, 5, 7] if len(labels) >= 12 else [3, 5] if len(labels) >= 8 else [3]
+    radii = [1.5, 2.5, 3.45][:len(ring_counts)]
+    hub = clean_hub(a.hub, a.concepts[0]["label"] if a.concepts else "")
+    W, H = 10.6, 8.0
+    fig, ax = canvas(W, H)
+    cx, cy = W / 2, H / 2
+    HUB = -1
+
+    for r in radii:
+        ax.add_patch(Circle((cx, cy), r, fc="none", ec=GRID_MAJOR, lw=0.9,
+                            linestyle=(0, (4, 4)), zorder=1))
+
+    placed: List[Tuple[float, float, int]] = []
+    k = 0
+    for ring, (r, cnt) in enumerate(zip(radii, ring_counts)):
+        for s in range(cnt):
+            if k >= len(labels):
+                break
+            ang = math.pi / 2 - 2 * math.pi * (s + 0.5) / cnt + (0.24 if ring % 2 else 0)
+            placed.append((cx + r * math.cos(ang), cy + r * math.sin(ang), k))
+            k += 1
+
+    boxes: Dict[int, Tuple] = {}
+    for x, y, i in placed:
+        lines, fs, lh = fit(labels[i], 1.7, 0.62, 9.4, 7.6, max_lines=2)
+        w = max(text_w(l, fs) for l in lines) + 0.32
+        h = len(lines) * lh + 0.28
+        boxes[i] = (lines, fs, w, h, lh)
+
+    # the hub joins the solver as a pinned box so ring 1 cannot sit under it
+    hl, hfs, hlh = fit(hub, 2.0, 1.35, 10.8, 8.4, bold=True, max_lines=3)
+    hw = max(text_w(l, hfs, True) for l in hl) + 0.5
+    hh = len(hl) * hlh + 0.42
+    boxes[HUB] = (hl, hfs, hw, hh, hlh)
+
+    pos = {i: (x, y) for x, y, i in placed}
+    pos[HUB] = (cx, cy)
+    separate(pos, boxes, W, H, pinned=HUB, iters=220)
+
+    for i in pos:
+        if i == HUB:
+            continue
+        x, y = pos[i]
+        ax.plot([cx, x], [cy, y], color=BLACK, lw=0.7, zorder=2)
+
+    for i in pos:
+        if i == HUB:
+            continue
+        lines, fs, w, h, lh = boxes[i]
+        x, y = pos[i]
+        s_round(ax, x - w / 2, y - h / 2, w, h, lw=1.0 + 1.6 * (weights[i] / fmax), r=0.14, z=3)
+        top = y + len(lines) * lh / 2
+        for j, ln in enumerate(lines):
+            ax.text(x, top - (j + 0.5) * lh, ln, ha="center", va="center", fontsize=fs, zorder=4)
+
+    s_round(ax, cx - hw / 2, cy - hh / 2, hw, hh, lw=2.2, r=0.2, z=5)
+    for j, ln in enumerate(hl):
+        ax.text(cx, cy + (len(hl) - 1) * hlh / 2 - j * hlh, ln, ha="center", va="center",
+                fontsize=hfs, fontweight="bold", zorder=6)
+    return save_all(fig, outdir, stem)
+
+
+# --------------------------------------------------------------------------
+# Public entry points
 # --------------------------------------------------------------------------
 BUILDERS = [
     ("structure", fig_structure),
@@ -1325,23 +1927,32 @@ BUILDERS = [
     ("framework", fig_framework),
 ]
 
+ADVANCED_BUILDERS = [
+    ("adv_stack", fig_adv_stack),
+    ("adv_matrix", fig_adv_matrix),
+    ("adv_rings", fig_adv_rings),
+]
+
 
 def make_all(a: Analysis, outdir: str | Path) -> Dict[str, Dict[str, str]]:
     outdir = Path(outdir)
-    made = {}
-    for key, fn in BUILDERS:
-        made[key] = fn(a, outdir, f"fig_{key}")
-    return made
+    return {key: fn(a, outdir, f"fig_{key}") for key, fn in BUILDERS}
+
+
+def make_advanced(a: Analysis, outdir: str | Path) -> Dict[str, Dict[str, str]]:
+    outdir = Path(outdir)
+    return {key: fn(a, outdir, f"fig_{key}") for key, fn in ADVANCED_BUILDERS}
 </script>
 <script type="text/plain" id="src-pipeline">"""
 pipeline.py
 -----------
-Glues the three stages together:
+Glues the stages together:
 
     paper_parser.parse_paper  ->  analyzer.analyze  ->  diagram_maker.make_all
 
-and adds the "where does this figure go?" advice (using the *actual* headings
-found in the uploaded paper) plus a self-contained HTML report builder.
+and adds the "where does this figure go?" advice plus a self-contained HTML
+report builder.  Every figure carries the confidence rating produced upstream,
+so the report can be honest about weak plates.
 
 CLI:  python pipeline.py paper.pdf [output_dir]
 """
@@ -1355,7 +1966,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from analyzer import Analysis, analyze, trim
-from diagram_maker import make_all
+from diagram_maker import make_advanced, make_all
 from paper_parser import CANON_LABEL, Paper, parse_paper
 
 
@@ -1368,16 +1979,22 @@ def _placement(paper: Paper, canon: str, fallback: str | None, position: str, re
     return {"section": where, "section_found": found, "position": position, "reason": reason}
 
 
+def _conf(a: Analysis, key: str) -> Dict:
+    level, why = a.confidence.get(key, ("low", "not assessed"))
+    return {"level": level, "why": why}
+
+
 def build_figures(paper: Paper, a: Analysis, files: Dict[str, Dict[str, str]]) -> List[Dict]:
     kind = a.results["kind"]
-    steps_txt = " → ".join(trim(s["title"], 28) for s in a.steps)
+    steps_txt = " → ".join(trim(s["title"], 26) for s in a.steps)
     top_terms = ", ".join(c["label"] for c in sorted(a.concepts, key=lambda c: -c["freq"])[:3])
 
     results_caption = {
         "table": "Comparison of the evaluated methods across the reported metrics ("
                  + ", ".join(a.results.get("series", [])) + ").",
         "percent": "Key quantitative outcomes reported in the paper (values in %).",
-        "terms": "Most frequent technical terms in the paper (no numeric results table was detected).",
+        "terms": "Most frequent technical terms in the paper; no numeric result could be parsed, so "
+                 "this plate is a term-frequency profile, not a results comparison.",
     }[kind]
 
     specs = [
@@ -1391,7 +2008,7 @@ def build_figures(paper: Paper, a: Analysis, files: Dict[str, Dict[str, str]]) -
                     "After the first paragraph that introduces the background / key terminology.",
                     f"Shows how the core concepts ({top_terms}) relate to each other before the "
                     "method is described."),
-         "Concept map of the key terms used in the paper; line thickness shows how often two concepts "
+         "Concept map of the key terms used in the paper; line weight shows how often two concepts "
          "co-occur."),
         ("workflow", "Methodology workflow",
          _placement(paper, "methodology", None,
@@ -1402,11 +2019,7 @@ def build_figures(paper: Paper, a: Analysis, files: Dict[str, Dict[str, str]]) -
         ("results", "Results chart",
          _placement(paper, "results", "discussion",
                     "Directly after the paragraph that first discusses the numbers.",
-                    "Makes the quantitative findings comparable at a glance."
-                    + ("" if kind == "table" else
-                       " (No clean results table could be parsed, so this figure is built from the "
-                       + ("percentages quoted in the text." if kind == "percent"
-                          else "most frequent terms."))),
+                    "Makes the quantitative findings comparable at a glance."),
          results_caption),
         ("framework", "Conceptual framework / graphical summary",
          _placement(paper, "conclusion", "discussion",
@@ -1419,7 +2032,37 @@ def build_figures(paper: Paper, a: Analysis, files: Dict[str, Dict[str, str]]) -
     figs = []
     for n, (key, title, place, caption) in enumerate(specs, 1):
         figs.append({"id": key, "number": n, "title": title, "caption": caption,
-                     "placement": place, "files": files[key]})
+                     "placement": place, "files": files[key], "confidence": _conf(a, key)})
+    return figs
+
+
+def build_advanced_figures(paper: Paper, a: Analysis, files: Dict[str, Dict[str, str]]) -> List[Dict]:
+    layers = " → ".join(trim(s["title"], 24) for s in a.steps[:5])
+    specs = [
+        ("adv_stack", "Exploded system stack",
+         _placement(paper, "methodology", None,
+                    "After the overview paragraph, as an exploded-view plate of the architecture.",
+                    "Separates the layers of the proposed system so each can be referenced "
+                    "individually by a reviewer."),
+         f"Exploded view of the proposed system: {layers}."),
+        ("adv_matrix", "Concept adjacency matrix",
+         _placement(paper, "related_work", "introduction",
+                    "At the end of the section, where the term relationships have been established.",
+                    "Quantifies which concepts are discussed together, which prose alone makes hard "
+                    "to verify."),
+         "Concept adjacency matrix; cell shading and figures give the number of sentences in which "
+         "the row and column concepts co-occur, with marginal totals."),
+        ("adv_rings", "Radial taxonomy plate",
+         _placement(paper, "related_work", "introduction",
+                    "As an opening orientation figure, or as the graphical abstract.",
+                    "Places every key term in a ringed hierarchy around the central contribution."),
+         "Radial taxonomy of the paper's concepts, core terms innermost; border weight indicates "
+         "frequency."),
+    ]
+    figs = []
+    for n, (key, title, place, caption) in enumerate(specs, 6):
+        figs.append({"id": key, "number": n, "title": title, "caption": caption,
+                     "placement": place, "files": files[key], "confidence": _conf(a, key)})
     return figs
 
 
@@ -1433,6 +2076,8 @@ def run_pipeline(path: str | Path, outdir: str | Path) -> Dict:
         "keywords": paper.keywords,
         "pages": paper.pages,
         "total_words": a.total_words,
+        "source_path": str(Path(path).resolve()),
+        "results_source": a.results.get("source", ""),
         "sections": [{"heading": s.heading, "canon": CANON_LABEL.get(s.canon, s.canon),
                       "words": s.word_count} for s in paper.sections
                      if s.canon not in ("front",) and s.word_count > 0],
@@ -1442,19 +2087,46 @@ def run_pipeline(path: str | Path, outdir: str | Path) -> Dict:
     return result
 
 
+def run_advanced(outdir: str | Path) -> Dict:
+    d = Path(outdir)
+    result = json.loads((d / "result.json").read_text(encoding="utf-8"))
+    paper = parse_paper(result["source_path"])
+    a = analyze(paper)
+    a.hub = paper.title
+    files = make_advanced(a, d)
+    figs = build_advanced_figures(paper, a, files)
+    (d / "advanced.json").write_text(json.dumps(figs, indent=2), encoding="utf-8")
+    return {"figures": figs}
+
+
 # --------------------------------------------------------------------------
-# Single-file HTML report (all diagrams embedded) - "merge into one HTML"
+# Single-file HTML report
 # --------------------------------------------------------------------------
 REPORT_CSS = """
-body{font-family:Georgia,'Times New Roman',serif;color:#000;background:#fff;max-width:980px;
-margin:0 auto;padding:40px 28px;line-height:1.5}
+body{font-family:'Times New Roman',Times,'Liberation Serif',serif;color:#000;background:#fff;
+max-width:980px;margin:0 auto;padding:40px 28px;line-height:1.5;font-size:16px}
 h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;border-bottom:2px solid #000;padding-bottom:4px;margin-top:44px}
 .meta{font-size:14px;margin-bottom:26px}.fig{margin:26px 0 38px;page-break-inside:avoid}
 .fig img{max-width:100%;border:1.5px solid #000;padding:10px;box-sizing:border-box}
 .cap{font-size:14px;margin:8px 0}table{border-collapse:collapse;width:100%;font-size:14px}
 td,th{border:1.5px solid #000;padding:6px 10px;text-align:left;vertical-align:top}th{background:#000;color:#fff}
+tr.low td{background:#f2f2f2}
 .tag{display:inline-block;border:1.5px solid #000;padding:1px 9px;font-weight:bold}
+.conf{font-weight:bold;text-transform:uppercase;font-size:12px}
 """
+
+
+def _block(outdir: Path, f: Dict, e) -> str:
+    b64 = base64.b64encode((outdir / f["files"]["png"]).read_bytes()).decode()
+    p = f["placement"]
+    c = f.get("confidence", {"level": "low", "why": ""})
+    return (f"<div class='fig'><div class='tag'>Fig. {f['number']} — {e(f['title'])}</div>"
+            f"<p class='cap'><b>Confidence:</b> <span class='conf'>{e(c['level'])}</span> — "
+            f"{e(c['why'])}</p>"
+            f"<p class='cap'><b>Insert in:</b> {e(p['section'])} — {e(p['position'])}</p>"
+            f"<img alt='{e(f['title'])}' src='data:image/png;base64,{b64}'>"
+            f"<p class='cap'><b>Suggested caption:</b> Fig. {f['number']}. {e(f['caption'])}</p>"
+            f"<p class='cap'><i>Why here:</i> {e(p['reason'])}</p></div>")
 
 
 def build_report_html(result: Dict, outdir: str | Path) -> str:
@@ -1462,24 +2134,43 @@ def build_report_html(result: Dict, outdir: str | Path) -> str:
     e = html.escape
     rows, blocks = [], []
     for f in result["figures"]:
-        b64 = base64.b64encode((outdir / f["files"]["png"]).read_bytes()).decode()
         p = f["placement"]
-        rows.append(f"<tr><td>Fig. {f['number']}</td><td>{e(f['title'])}</td><td>{e(p['section'])}</td>"
-                    f"<td>{e(p['position'])}</td></tr>")
-        blocks.append(
-            f"<div class='fig'><div class='tag'>Fig. {f['number']} — {e(f['title'])}</div>"
-            f"<p class='cap'><b>Insert in:</b> {e(p['section'])} — {e(p['position'])}</p>"
-            f"<img alt='{e(f['title'])}' src='data:image/png;base64,{b64}'>"
-            f"<p class='cap'><b>Suggested caption:</b> Fig. {f['number']}. {e(f['caption'])}</p>"
-            f"<p class='cap'><i>Why here:</i> {e(p['reason'])}</p></div>")
+        c = f.get("confidence", {"level": "low", "why": ""})
+        cls = " class='low'" if c["level"] == "low" else ""
+        rows.append(f"<tr{cls}><td>Fig. {f['number']}</td><td>{e(f['title'])}</td>"
+                    f"<td>{e(c['level'])}</td><td>{e(p['section'])}</td><td>{e(p['position'])}</td></tr>")
+        blocks.append(_block(outdir, f, e))
+
+    adv_rows, adv_blocks = [], []
+    adv_path = outdir / "advanced.json"
+    if adv_path.exists():
+        try:
+            for f in json.loads(adv_path.read_text(encoding="utf-8")):
+                p = f["placement"]
+                c = f.get("confidence", {"level": "low", "why": ""})
+                adv_rows.append(f"<tr><td>Fig. {f['number']}</td><td>{e(f['title'])}</td>"
+                                f"<td>{e(c['level'])}</td><td>{e(p['section'])}</td>"
+                                f"<td>{e(p['position'])}</td></tr>")
+                adv_blocks.append(_block(outdir, f, e))
+        except Exception:
+            adv_blocks = []
+
+    adv_table = ""
+    if adv_blocks:
+        adv_table = ("<h2>Advanced plates: where each goes</h2><table><tr><th>No.</th><th>Diagram</th>"
+                     "<th>Confidence</th><th>Section</th><th>Position</th></tr>"
+                     + "".join(adv_rows) + "</table>")
+
     kw = ", ".join(result["keywords"]) or "—"
     return (f"<!doctype html><html lang='en'><head><meta charset='utf-8'>"
             f"<title>Diagrams for: {e(result['title'])}</title><style>{REPORT_CSS}</style></head><body>"
             f"<h1>{e(result['title'])}</h1>"
-            f"<div class='meta'>Keywords: {e(kw)} &nbsp;|&nbsp; {result['total_words']:,} words analysed</div>"
-            f"<h2>Where each diagram goes</h2><table><tr><th>No.</th><th>Diagram</th><th>Section</th>"
-            f"<th>Position</th></tr>{''.join(rows)}</table>"
-            f"<h2>Diagrams</h2>{''.join(blocks)}</body></html>")
+            f"<div class='meta'>Keywords: {e(kw)} &nbsp;|&nbsp; {result['total_words']:,} words analysed"
+            f" &nbsp;|&nbsp; results source: {e(result.get('results_source') or 'none')}</div>"
+            f"<h2>Where each diagram goes</h2><table><tr><th>No.</th><th>Diagram</th><th>Confidence</th>"
+            f"<th>Section</th><th>Position</th></tr>{''.join(rows)}</table>"
+            f"<h2>Diagrams</h2>{''.join(blocks)}"
+            f"{adv_table}<h2>Advanced diagrams</h2>{''.join(adv_blocks)}</body></html>")
 
 
 if __name__ == "__main__":
@@ -1490,12 +2181,12 @@ if __name__ == "__main__":
     (out / "report.html").write_text(build_report_html(res, out), encoding="utf-8")
     print(f"Title: {res['title']}")
     for f in res["figures"]:
-        print(f"  Fig {f['number']}: {f['title']:<42} -> {f['placement']['section']}")
+        print(f"  Fig {f['number']}: {f['title']:<42} [{f['confidence']['level']}] "
+              f"-> {f['placement']['section']}")
     print(f"\nFiles written to: {out.resolve()}  (open report.html)")
 </script>
 <script type="text/plain" id="src-web_entry">"""
-web_entry.py - tiny glue used by the single-file HTML version (runs inside Pyodide).
-JavaScript calls these three functions; everything else lives in the other scripts.
+web_entry.py - glue used by the single-file HTML version (runs inside Pyodide).
 """
 from __future__ import annotations
 
@@ -1504,13 +2195,17 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from pipeline import build_report_html, run_pipeline
+from pipeline import build_report_html, run_advanced, run_pipeline
 
 
 def analyze_file(path: str, outdir: str) -> str:
     out = Path(outdir)
     shutil.rmtree(out, ignore_errors=True)
     return json.dumps(run_pipeline(path, out))
+
+
+def make_advanced(outdir: str) -> str:
+    return json.dumps(run_advanced(outdir))
 
 
 def make_report(outdir: str) -> str:
@@ -1527,55 +2222,178 @@ def make_zip(outdir: str) -> str:
             z.write(p, p.name)
         z.writestr("paper_diagrams_report.html", make_report(outdir))
     return str(target)
+
+
+def active_font() -> str:
+    try:
+        import diagram_maker
+        return diagram_maker.FONT
+    except Exception:
+        return "unknown"
+
+
+def probe() -> str:
+    import sys
+    import matplotlib
+    import numpy
+    import diagram_maker
+    from pipeline import build_report_html  # noqa: F401
+    return json.dumps({
+        "python": sys.version.split()[0],
+        "matplotlib": matplotlib.__version__,
+        "numpy": numpy.__version__,
+        "font": diagram_maker.FONT,
+        "pil": diagram_maker.HAVE_PIL,
+    })
 </script>
 
 <script>
 const $ = id => document.getElementById(id);
-const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/";
 const PY_FILES = ["paper_parser", "analyzer", "diagram_maker", "pipeline", "web_entry"];
 const MIME = { png: "image/png", svg: "image/svg+xml", pdf: "application/pdf" };
+
+const PYODIDE_BASES = [
+  "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/",
+  "https://cdn.jsdelivr.net/pyodide/v0.29.2/full/",
+  "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/",
+  "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/",
+  "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
+  "https://cdn.jsdelivr.net/pyodide/dev/full/"
+];
+
+const FONT_URLS = [
+  "https://cdn.jsdelivr.net/gh/justrajdeep/fonts@master/Times%20New%20Roman.ttf",
+  "https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times%20New%20Roman.ttf",
+  "https://cdn.jsdelivr.net/gh/opensourcedesign/fonts@master/times-new-roman/times.ttf"
+];
+
 let pyodide = null, web = null, docxReady = false, jobN = 0, chosen = null, engineReady = false;
+let lastOut = null, urls = [];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const tick = () => new Promise(r => setTimeout(r, 40));
 
-function setEngine(msg, ok) { $('engine').textContent = msg; $('engine').classList.toggle('ok', !!ok); }
+function setEngine(msg, state) {
+  $('engine').textContent = msg;
+  $('engine').classList.toggle('ok', state === 'ok');
+  $('engine').classList.toggle('bad', state === 'bad');
+}
 function setBar(msg) { $('barText').textContent = msg; }
+function refreshButton() { $('go').disabled = !(engineReady && chosen); }
+function releaseUrls() { urls.forEach(u => URL.revokeObjectURL(u)); urls = []; }
+const blobUrl = (bytes, type) => { const u = URL.createObjectURL(new Blob([bytes], { type })); urls.push(u); return u; };
+
+function timedFetch(url, ms, opts) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, Object.assign({ signal: ctl.signal }, opts || {})).finally(() => clearTimeout(t));
+}
 function loadScript(src) {
   return new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = src; s.onload = res;
-    s.onerror = () => rej(new Error('Could not load the Python engine from ' + src + '. Check your internet connection and try again.'));
+    const s = document.createElement('script');
+    s.src = src; s.onload = res;
+    s.onerror = () => rej(new Error('script blocked: ' + src));
     document.head.appendChild(s);
   });
 }
-function refreshButton() { $('go').disabled = !(engineReady && chosen); }
+function showError(msg) {
+  $('errText').textContent = String(msg).trim();
+  $('err').style.display = 'block';
+  $('err').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  console.error(msg);
+}
+
+async function loadRuntime() {
+  const failures = [];
+  for (const base of PYODIDE_BASES) {
+    const label = base.match(/pyodide\/([^/]+)\//);
+    setEngine('Probing Python runtime ' + (label ? label[1] : base) + '…');
+    try {
+      const r = await timedFetch(base + 'pyodide.js', 15000, { cache: 'force-cache' });
+      if (!r.ok) { failures.push(base + ' → HTTP ' + r.status); continue; }
+      await loadScript(base + 'pyodide.js');
+      const rt = await loadPyodide({ indexURL: base });
+      return rt;
+    } catch (e) {
+      failures.push(base + ' → ' + (e && e.message ? e.message : e));
+    }
+  }
+  throw new Error('No Python runtime could be loaded. Tried:\n' + failures.join('\n') +
+                  '\n\nCheck that cdn.jsdelivr.net is reachable.');
+}
+
+async function loadPackages() {
+  const sets = [['numpy', 'matplotlib', 'pillow'], ['numpy', 'matplotlib']];
+  let last = null;
+  for (const set of sets) {
+    try { await pyodide.loadPackage(set); return set; }
+    catch (e) { last = e; }
+  }
+  throw new Error('Could not load numpy/matplotlib: ' + (last && last.message ? last.message : last));
+}
+
+async function fetchFont() {
+  for (const url of FONT_URLS) {
+    try {
+      const r = await timedFetch(url, 8000, { cache: 'force-cache' });
+      if (!r.ok) continue;
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      if (bytes.length < 20000) continue;
+      const sig = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+      if (!['\u0000\u0001\u0000\u0000', 'OTTO', 'true', 'ttcf'].includes(sig)) continue;
+      pyodide.FS.mkdirTree('/app/fonts');
+      pyodide.FS.writeFile('/app/fonts/times.ttf', bytes);
+      return true;
+    } catch (e) { /* next mirror */ }
+  }
+  return false;
+}
 
 async function boot() {
   try {
-    setEngine('Loading Python engine (first visit only, about 30–60 s)…');
-    await loadScript(PYODIDE + 'pyodide.js');
-    pyodide = await loadPyodide({ indexURL: PYODIDE });
-    setEngine('Loading numpy, matplotlib and Pillow…');
-    await pyodide.loadPackage(['numpy', 'matplotlib', 'pillow', 'micropip']);
-    setEngine('Installing the PDF reader…');
-    await pyodide.pyimport('micropip').install('pypdf');
+    setEngine('Starting…');
+    pyodide = await loadRuntime();
+
+    setEngine('Loading numpy and matplotlib…');
+    const loaded = await loadPackages();
+    const havePillow = loaded.includes('pillow');
+
+    try { await pyodide.loadPackage('micropip'); } catch (e) { /* bundled anyway */ }
+    let havePypdf = false;
+    try {
+      await pyodide.pyimport('micropip').install('pypdf');
+      havePypdf = true;
+    } catch (e) { /* only needed for PDF uploads */ }
+
+    setEngine('Installing the Times New Roman font…');
+    const gotFont = await fetchFont();
+
     pyodide.FS.mkdirTree('/app');
     for (const n of PY_FILES) pyodide.FS.writeFile('/app/' + n + '.py', $('src-' + n).textContent);
     pyodide.runPython('import sys\nsys.path.insert(0, "/app")');
-    web = pyodide.pyimport('web_entry');
+
+    let info = null;
+    try {
+      web = pyodide.pyimport('web_entry');
+      info = JSON.parse(web.probe());
+    } catch (e) {
+      throw new Error('The Python modules failed to import:\n' + (e && e.message ? e.message : e));
+    }
+
+    const notes = [];
+    if (!gotFont) notes.push('font fallback');
+    if (!havePypdf) notes.push('no PDF reader');
+    if (!havePillow) notes.push('no greyscale pass');
+    setEngine('Engine ready · ' + info.font + ' · Python ' + info.python +
+              (notes.length ? ' · ' + notes.join(', ') : ''), 'ok');
     engineReady = true;
-    setEngine('Python engine ready ✓', true);
+    if (!havePypdf) {
+      showError('The PDF reader could not be installed, so only DOCX and TXT uploads will work right now.');
+    }
   } catch (e) {
-    setEngine('Python engine failed to load');
-    showError(e.message || String(e));
+    setEngine('Python engine failed to load', 'bad');
+    showError(e && e.stack ? e.stack : e);
   }
   refreshButton();
-}
-
-function showError(msg) {
-  const lines = String(msg).trim().split('\n');
-  $('err').textContent = lines[lines.length - 1] || msg;
-  $('err').style.display = 'block';
-  console.error(msg);
 }
 
 function pick(f) {
@@ -1604,49 +2422,45 @@ async function analyze(file) {
 
   setBar('Reading the paper, extracting concepts and drawing the diagrams (this can take 10–40 s)…'); await tick();
   const d = JSON.parse(web.analyze_file(src, out));
+  lastOut = out;
 
   for (const f of d.figures) {
     f.urls = {};
     for (const k of ['png', 'svg', 'pdf']) {
-      f.urls[k] = URL.createObjectURL(new Blob([pyodide.FS.readFile(out + '/' + f.files[k])], { type: MIME[k] }));
+      f.urls[k] = blobUrl(pyodide.FS.readFile(out + '/' + f.files[k]), MIME[k]);
     }
   }
-  d.reportUrl = URL.createObjectURL(new Blob([web.make_report(out)], { type: 'text/html' }));
-  const zipPath = web.make_zip(out);
-  d.zipUrl = URL.createObjectURL(new Blob([pyodide.FS.readFile(zipPath)], { type: 'application/zip' }));
+  d.reportUrl = blobUrl(web.make_report(out), 'text/html');
+  d.zipUrl = blobUrl(pyodide.FS.readFile(web.make_zip(out)), 'application/zip');
   d.filename = file.name;
   return d;
 }
 
 $('go').addEventListener('click', async () => {
   if (!chosen || !engineReady) return;
+  releaseUrls();
   $('err').style.display = 'none'; $('out').style.display = 'none';
+  $('adv').style.display = 'none'; $('advHead').style.display = 'none';
+  $('goAdv').disabled = false; $('goAdv').textContent = 'Generate 3 advanced diagrams';
   $('bar').style.display = 'block'; $('go').disabled = true;
   setBar('Preparing…'); await tick();
   try {
     render(await analyze(chosen));
   } catch (e) {
-    showError(e.message || String(e));
+    showError(e && e.stack ? e.stack : e);
   } finally {
     $('bar').style.display = 'none'; refreshButton();
   }
 });
 
-function render(d) {
-  $('pTitle').textContent = d.title;
-  $('pMeta').textContent = `${d.filename} · ${d.total_words.toLocaleString()} words analysed` +
-    (d.pages ? ` · ${d.pages} pages` : '') + (d.keywords.length ? ` · Keywords: ${d.keywords.join(', ')}` : '');
-  $('pChips').innerHTML = d.sections.map(s => `<span class="chip" title="${s.words} words">${esc(s.heading)}</span>`).join('');
-  $('dlReport').href = d.reportUrl;
-  $('dlZip').href = d.zipUrl;
-
-  $('plan').innerHTML = '<tr><th>No.</th><th>Diagram</th><th>Insert in section</th><th>Position</th></tr>' +
-    d.figures.map(f => `<tr><td>Fig. ${f.number}</td><td>${esc(f.title)}</td>
-      <td>${esc(f.placement.section)}${f.placement.section_found ? '' : ' ⚠'}</td><td>${esc(f.placement.position)}</td></tr>`).join('');
-
-  $('figs').innerHTML = d.figures.map((f, i) => `
+function figureBlock(f, i, advanced) {
+  const low = f.confidence && f.confidence.level === 'low';
+  return `
     <div class="fig">
-      <div class="head"><span class="num">Fig. ${f.number}</span><span class="ttl">${esc(f.title)}</span></div>
+      <div class="head"><span class="num">Fig. ${f.number}</span><span class="ttl">${esc(f.title)}</span>
+        <span class="conf ${esc(f.confidence.level)}">${esc(f.confidence.level)}</span>
+        ${advanced ? '<span class="badge">ADVANCED</span>' : ''}</div>
+      ${low ? `<div class="warn"><b>Check before use:</b> ${esc(f.confidence.why)}</div>` : ''}
       <div class="place"><b>Insert in:</b> ${esc(f.placement.section)}<br><b>Position:</b> ${esc(f.placement.position)}<br><i>${esc(f.placement.reason)}</i></div>
       <div class="imgbox"><img alt="${esc(f.title)}" src="${f.urls.png}"></div>
       <div class="cap"><b>Suggested caption:</b> Fig. ${f.number}. ${esc(f.caption)}</div>
@@ -1656,16 +2470,68 @@ function render(d) {
         <a class="btn" href="${f.urls.pdf}" download="fig_${f.id}.pdf">PDF</a>
         <button type="button" data-cap="${i}">Copy caption</button>
       </div>
-    </div>`).join('');
-  document.querySelectorAll('button[data-cap]').forEach(b => b.addEventListener('click', () => {
-    const f = d.figures[+b.dataset.cap];
+    </div>`;
+}
+
+function bindCaptions(scope, list) {
+  scope.querySelectorAll('button[data-cap]').forEach(b => b.addEventListener('click', () => {
+    const f = list[+b.dataset.cap];
     navigator.clipboard.writeText(`Fig. ${f.number}. ${f.caption}`).then(() => { b.textContent = 'Copied'; });
   }));
+}
+
+function render(d) {
+  $('pTitle').textContent = d.title;
+  $('pMeta').textContent = `${d.filename} · ${d.total_words.toLocaleString()} words analysed` +
+    (d.pages ? ` · ${d.pages} pages` : '') + (d.keywords.length ? ` · Keywords: ${d.keywords.join(', ')}` : '');
+  $('pChips').innerHTML = d.sections.map(s => `<span class="chip" title="${s.words} words">${esc(s.heading)}</span>`).join('');
+  $('dlReport').href = d.reportUrl;
+  $('dlZip').href = d.zipUrl;
+
+  $('plan').innerHTML = '<tr><th>No.</th><th>Diagram</th><th>Confidence</th><th>Insert in section</th><th>Position</th></tr>' +
+    d.figures.map(f => `<tr class="${f.confidence.level === 'low' ? 'low' : ''}">
+      <td>Fig. ${f.number}</td><td>${esc(f.title)}</td>
+      <td><span class="conf ${esc(f.confidence.level)}">${esc(f.confidence.level)}</span><br><small>${esc(f.confidence.why)}</small></td>
+      <td>${esc(f.placement.section)}${f.placement.section_found ? '' : ' ⚠'}</td>
+      <td>${esc(f.placement.position)}</td></tr>`).join('');
+
+  $('figs').innerHTML = d.figures.map((f, i) => figureBlock(f, i, false)).join('');
+  bindCaptions($('figs'), d.figures);
+
+  $('advPanel').style.display = 'block';
   $('out').style.display = 'block';
   $('out').scrollIntoView({ behavior: 'smooth' });
 }
 
-// list the embedded scripts so they can be read / saved as .py files
+$('goAdv').addEventListener('click', async () => {
+  if (!lastOut) return;
+  $('goAdv').disabled = true; $('goAdv').textContent = 'Drawing…';
+  $('err').style.display = 'none';
+  $('bar').style.display = 'block';
+  setBar('Drawing the advanced plates…'); await tick();
+  try {
+    const d = JSON.parse(web.make_advanced(lastOut));
+    for (const f of d.figures) {
+      f.urls = {};
+      for (const k of ['png', 'svg', 'pdf']) {
+        f.urls[k] = blobUrl(pyodide.FS.readFile(lastOut + '/' + f.files[k]), MIME[k]);
+      }
+    }
+    $('adv').innerHTML = d.figures.map((f, i) => figureBlock(f, i, true)).join('');
+    bindCaptions($('adv'), d.figures);
+    $('adv').style.display = 'block';
+    $('advHead').style.display = 'block';
+    $('dlReport').href = blobUrl(web.make_report(lastOut), 'text/html');
+    $('dlZip').href = blobUrl(pyodide.FS.readFile(web.make_zip(lastOut)), 'application/zip');
+    $('goAdv').textContent = 'Advanced diagrams ready ✓';
+  } catch (e) {
+    showError(e && e.stack ? e.stack : e);
+    $('goAdv').disabled = false; $('goAdv').textContent = 'Retry advanced diagrams';
+  } finally {
+    $('bar').style.display = 'none';
+  }
+});
+
 $('scripts').innerHTML = PY_FILES.map(n => {
   const text = $('src-' + n).textContent;
   const url = URL.createObjectURL(new Blob([text], { type: 'text/x-python' }));
@@ -1673,12 +2539,6 @@ $('scripts').innerHTML = PY_FILES.map(n => {
     <div style="padding:8px 12px"><a class="btn" href="${url}" download="${n}.py">Download ${n}.py</a></div>
     <pre>${esc(text)}</pre></details>`;
 }).join('');
-
-// Disable the browser's right-click (context) menu on this page
-function disableRightClick() {
-  document.addEventListener('contextmenu', e => e.preventDefault());
-}
-disableRightClick();
 
 boot();
 </script>
