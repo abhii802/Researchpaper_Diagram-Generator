@@ -1,0 +1,1686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper to Diagrams</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:#000; font-family:Georgia,'Times New Roman',serif; line-height:1.5; }
+  .wrap { max-width:1000px; margin:0 auto; padding:36px 22px 80px; }
+  h1 { font-size:30px; margin:0 0 4px; }
+  .sub { margin:0 0 18px; font-size:15px; }
+  #engine { display:inline-block; border:2px solid #000; padding:3px 12px; font-size:13.5px; margin-bottom:18px; }
+  #engine.ok { background:#000; color:#fff; }
+  #drop { display:block; border:2.5px dashed #000; padding:42px 20px; text-align:center; cursor:pointer; transition:background .15s; }
+  #drop.over, #drop:hover { background:#000; color:#fff; }
+  #drop b { font-size:18px; }
+  #drop small { display:block; margin-top:6px; font-size:13px; }
+  #file { display:none; }
+  button, .btn { font:inherit; font-size:14px; background:#fff; color:#000; border:2px solid #000; padding:6px 14px; cursor:pointer; text-decoration:none; display:inline-block; }
+  button:hover, .btn:hover { background:#000; color:#fff; }
+  button.primary { background:#000; color:#fff; }
+  button.primary:hover { background:#fff; color:#000; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .actions { margin:18px 0 6px; display:flex; gap:10px; flex-wrap:wrap; }
+  #bar { display:none; margin-top:20px; border:2px solid #000; padding:12px 16px; font-size:15px; }
+  #bar .track { height:8px; border:1.5px solid #000; margin-top:8px; overflow:hidden; }
+  #bar .fill { height:100%; width:30%; background:#000; animation:slide 1.2s linear infinite; }
+  @keyframes slide { from { margin-left:-30%; } to { margin-left:100%; } }
+  #err { display:none; margin-top:20px; border:2px solid #000; padding:12px 16px; font-weight:bold; white-space:pre-wrap; }
+  #out { display:none; margin-top:34px; }
+  .paper { border:2px solid #000; padding:16px 20px; }
+  .paper h2 { margin:0 0 6px; font-size:21px; }
+  .chips { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { border:1.5px solid #000; padding:1px 9px; font-size:13px; background:#000; color:#fff; }
+  h3.sec { margin:36px 0 10px; font-size:19px; border-bottom:2px solid #000; padding-bottom:4px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { border:1.5px solid #000; padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:#000; color:#fff; }
+  .fig { margin:26px 0 40px; }
+  .fig .head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .num { background:#000; color:#fff; font-weight:bold; padding:2px 10px; }
+  .fig .ttl { font-size:18px; font-weight:bold; }
+  .place { margin:8px 0; border-left:5px solid #000; padding:2px 0 2px 12px; font-size:14.5px; }
+  .imgbox { border:2px solid #000; padding:12px; text-align:center; }
+  .imgbox img { max-width:100%; height:auto; }
+  .cap { font-size:14px; margin:8px 0 6px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  details { border:1.5px solid #000; margin:8px 0; }
+  summary { cursor:pointer; padding:7px 12px; font-weight:bold; }
+  pre { margin:0; padding:12px; overflow:auto; max-height:420px; font-size:12px; border-top:1.5px solid #000; background:#fff; }
+  footer { margin-top:50px; font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Paper → Diagrams</h1>
+  <p class="sub">Upload one research paper. The embedded Python scripts read it, draw 5 black-and-white diagrams from its own content, and tell you which section each one belongs in. Everything runs inside your browser; the paper is never uploaded anywhere.</p>
+  <div id="engine">Starting…</div>
+
+  <label id="drop" for="file">
+    <b id="dropTitle">Click to choose a paper, or drop it here</b>
+    <small>PDF, DOCX or TXT · text-based (not scanned) files</small>
+  </label>
+  <input id="file" type="file" accept=".pdf,.docx,.txt">
+  <div class="actions"><button id="go" class="primary" disabled>Generate diagrams</button></div>
+
+  <div id="bar"><span id="barText"></span><div class="track"><div class="fill"></div></div></div>
+  <div id="err"></div>
+
+  <div id="out">
+    <div class="paper">
+      <h2 id="pTitle"></h2>
+      <div id="pMeta" style="font-size:14px"></div>
+      <div class="chips" id="pChips"></div>
+    </div>
+    <div class="actions">
+      <a class="btn" id="dlReport" download="paper_diagrams_report.html">Download single-file HTML report</a>
+      <a class="btn" id="dlZip" download="paper_diagrams.zip">Download all (ZIP: PNG, SVG, PDF)</a>
+    </div>
+    <h3 class="sec">Where each diagram goes</h3>
+    <table id="plan"></table>
+    <h3 class="sec">Diagrams</h3>
+    <div id="figs"></div>
+  </div>
+
+  <h3 class="sec" style="margin-top:56px">Python scripts inside this file</h3>
+  <div id="scripts"></div>
+  <footer>Figures are pure black &amp; white, 300 dpi PNG plus vector SVG/PDF, with no title inside the picture so the caption can live in your manuscript. The Python engine (Pyodide) is downloaded from the jsDelivr CDN on first use, so an internet connection is needed to start.</footer>
+</div>
+
+<script type="text/plain" id="src-paper_parser">"""
+paper_parser.py
+---------------
+Step 1 of the pipeline: read a research paper (PDF / DOCX / TXT) and split it
+into logical sections (Abstract, Introduction, Related Work, Methodology,
+Results, Discussion, Conclusion ...).
+
+Pure-Python, no network, no LLM.  Works with numbered ("3. Proposed Method"),
+IEEE-style ("III. METHODOLOGY"), plain ("Results") and DOCX "Heading N" styles.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+HEAD_MARK = "\x00H"  # explicit heading marker emitted by the DOCX reader
+
+# --------------------------------------------------------------------------
+# Heading classification
+# --------------------------------------------------------------------------
+# Order matters: the first rule that matches wins.
+CANON_RULES = [
+    ("abstract", ("abstract",)),
+    ("references", ("reference", "bibliograph")),
+    ("acknowledgements", ("acknowledg",)),
+    ("conclusion", ("conclu", "concluding", "future work", "future scope")),
+    ("related_work", ("related work", "literature", "prior work", "state of the art",
+                      "state-of-the-art", "previous work", "related stud")),
+    ("introduction", ("introduc", "background", "overview", "motivation")),
+    ("results", ("result", "finding")),
+    ("methodology", ("method", "propos", "approach", "architecture", "framework", "design",
+                     "model", "algorithm", "implementation", "system", "materials",
+                     "dataset", "setup", "workflow")),
+    ("results", ("experiment", "evaluat", "performance", "analysis", "comparison")),
+    ("discussion", ("discussion", "limitation", "implication")),
+]
+
+CANON_LABEL = {
+    "front": "Front matter",
+    "abstract": "Abstract",
+    "introduction": "Introduction",
+    "related_work": "Related Work",
+    "methodology": "Methodology",
+    "results": "Results",
+    "discussion": "Discussion",
+    "conclusion": "Conclusion",
+    "references": "References",
+    "acknowledgements": "Acknowledgements",
+    "other": "Other sections",
+}
+
+NUM_HEAD = re.compile(
+    r"^(?P<num>\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+(?P<title>[A-Z][A-Za-z0-9 ,:;&\-–/()'’]{2,90})$")
+ROMAN_HEAD = re.compile(
+    r"^(?P<num>[IVX]{1,5})\.\s+(?P<title>[A-Z][A-Za-z0-9 ,:;&\-–/()'’]{2,90})$")
+LETTER_HEAD = re.compile(
+    r"^(?P<num>[A-Z])\.\s+(?P<title>[A-Z][A-Za-z0-9 ,:;&\-–/()'’]{2,70})$")
+PLAIN_HEAD = re.compile(
+    r"^(?:abstract|introduction|related works?|literature review|background|methodology|"
+    r"methods?|materials and methods|results|results and discussion|discussion|"
+    r"conclusions?|conclusions? and future work|future work|references|bibliography|"
+    r"acknowledg(?:e)?ments?)\s*[:.]?$", re.I)
+APPENDIX = re.compile(r"^appendi(?:x|ces)\b.{0,40}$", re.I)
+INLINE_ABS = re.compile(r"^(abstract|summary)\s*[—–\-:.]+\s*(.+)$", re.I)
+EXPLICIT = re.compile(r"^\x00H(\d)\x00(.*)$")
+KEYWORD_LINE = re.compile(r"^(?:key\s?words?|index terms)\s*[—–:\-.]*\s*(.*)$", re.I)
+
+
+def classify_heading(title: str) -> str:
+    t = title.lower()
+    for canon, keys in CANON_RULES:
+        if any(k in t for k in keys):
+            return canon
+    return "other"
+
+
+# --------------------------------------------------------------------------
+# Data classes
+# --------------------------------------------------------------------------
+def join_lines(lines: List[str]) -> str:
+    """Join physical PDF lines into flowing text and repair hyphenation."""
+    out = ""
+    for ln in lines:
+        ln = ln.strip()
+        if not ln:
+            continue
+        if not out:
+            out = ln
+        elif out.endswith("-") and not out.endswith(" -") and ln[:1].islower():
+            out = out[:-1] + ln
+        else:
+            out += " " + ln
+    return re.sub(r"\s+", " ", out).strip()
+
+
+@dataclass
+class Section:
+    heading: str                      # heading exactly as printed, e.g. "3. Proposed Methodology"
+    canon: str                        # canonical key (see CANON_LABEL)
+    level: int = 1
+    lines: List[str] = field(default_factory=list)          # every line under the heading
+    subsections: List["Section"] = field(default_factory=list)
+
+    @property
+    def text(self) -> str:
+        return join_lines(self.lines)
+
+    @property
+    def word_count(self) -> int:
+        return len(self.text.split())
+
+
+@dataclass
+class Paper:
+    title: str
+    keywords: List[str]
+    sections: List[Section]
+    pages: int
+    source: str
+
+    def by_canon(self, canon: str) -> List[Section]:
+        return [s for s in self.sections if s.canon == canon]
+
+    def first(self, canon: str) -> Optional[Section]:
+        found = self.by_canon(canon)
+        return found[0] if found else None
+
+    @property
+    def abstract(self) -> str:
+        return " ".join(s.text for s in self.by_canon("abstract")).strip()
+
+    @property
+    def body_sections(self) -> List[Section]:
+        return [s for s in self.sections
+                if s.canon not in ("front", "references", "acknowledgements")]
+
+    @property
+    def total_words(self) -> int:
+        return sum(s.word_count for s in self.body_sections)
+
+
+# --------------------------------------------------------------------------
+# File readers
+# --------------------------------------------------------------------------
+_LIGATURES = {"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl", " ": " ",
+              " ": " ", "​": ""}
+
+
+def _normalise(line: str) -> str:
+    for a, b in _LIGATURES.items():
+        line = line.replace(a, b)
+    return re.sub(r"[ \t]+", " ", line).strip()
+
+
+def read_pdf(path: Path) -> Tuple[List[str], Optional[str], int]:
+    from pypdf import PdfReader
+
+    reader = PdfReader(str(path))
+    lines: List[str] = []
+    for page in reader.pages:
+        page_lines = [_normalise(l) for l in (page.extract_text() or "").splitlines()]
+        page_lines = [l for l in page_lines if l]
+        # drop running page numbers at the page edges only (keeps table cells safe)
+        for edge in (0, -1):
+            if page_lines and re.fullmatch(r"(?:page\s*)?\d{1,3}", page_lines[edge], re.I):
+                page_lines.pop(edge)
+        lines.extend(page_lines)
+    meta = None
+    try:
+        meta = reader.metadata.title if reader.metadata else None
+    except Exception:
+        pass
+    return lines, meta, len(reader.pages)
+
+
+def read_docx(path: Path) -> Tuple[List[str], Optional[str], int]:
+    import docx
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    document = docx.Document(str(path))
+    lines: List[str] = []
+    for child in document.element.body.iterchildren():
+        tag = child.tag.split("}")[-1]
+        if tag == "p":
+            para = Paragraph(child, document)
+            text = _normalise(para.text.replace("\n", " "))
+            if not text:
+                continue
+            style = para.style.name if para.style is not None else ""
+            m = re.match(r"Heading (\d)", style or "")
+            lines.append(f"{HEAD_MARK}{m.group(1)}\x00{text}" if m else text)
+        elif tag == "tbl":
+            table = Table(child, document)
+            for row in table.rows:
+                cells, last = [], None
+                for c in row.cells:
+                    if c._tc is last:
+                        continue
+                    last = c._tc
+                    cells.append(_normalise(c.text.replace("\n", " ")))
+                lines.append("  ".join(x for x in cells if x))
+    return lines, document.core_properties.title, 0
+
+
+def read_txt(path: Path) -> Tuple[List[str], Optional[str], int]:
+    raw = path.read_text(encoding="utf-8", errors="ignore")
+    return [_normalise(l) for l in raw.splitlines() if l.strip()], None, 0
+
+
+# --------------------------------------------------------------------------
+# Heading detection and section splitting
+# --------------------------------------------------------------------------
+def _clean_number(title: str) -> str:
+    return re.sub(r"^\s*(?:\d+(?:\.\d+)*\.?|[IVX]+\.|[A-Z]\.)\s+", "", title).strip()
+
+
+def detect_heading(line: str, seen_heading: bool, in_refs: bool):
+    """Return (level, clean_title, display, remainder) or None."""
+    m = EXPLICIT.match(line)
+    if m:
+        title = m.group(2).strip()
+        return int(m.group(1)), _clean_number(title), title, ""
+
+    m = INLINE_ABS.match(line)
+    if m and not in_refs:
+        return 1, "Abstract", "Abstract", m.group(2)
+
+    if PLAIN_HEAD.match(line):
+        t = line.rstrip(":. ").strip()
+        return 1, t, t.title() if t.isupper() else t, ""
+    if in_refs:
+        return (1, line, line, "") if APPENDIX.match(line) else None
+    if APPENDIX.match(line) and len(line.split()) <= 6:
+        return 1, line, line, ""
+
+    for rx, kind in ((NUM_HEAD, "arabic"), (ROMAN_HEAD, "roman")):
+        m = rx.match(line)
+        if m:
+            title = m.group("title").strip()
+            digits = sum(ch.isdigit() for ch in title)
+            if (len(title.split()) > 12 or digits / max(len(title), 1) > 0.15
+                    or "%" in title or title.endswith((",", ";"))):
+                continue
+            level = m.group("num").count(".") + 1 if kind == "arabic" else 1
+            display = line.title() if line.isupper() else line
+            return level, title, display, ""
+
+    if seen_heading:
+        m = LETTER_HEAD.match(line)
+        if m and len(m.group("title").split()) <= 8:
+            return 2, m.group("title"), line, ""
+        if (line.isupper() and 4 <= len(line) <= 60 and len(line.split()) <= 8
+                and classify_heading(line) != "other"):
+            return 1, line.title(), line.title(), ""
+    return None
+
+
+def split_sections(lines: List[str]) -> List[Section]:
+    sections: List[Section] = [Section("Front matter", "front")]
+    cur, sub = sections[0], None
+    seen = False
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        h = detect_heading(line, seen, cur.canon == "references")
+        if h is None:
+            cur.lines.append(line)
+            if sub is not None:
+                sub.lines.append(line)
+            continue
+        level, title, display, remainder = h
+        if level <= 1 or cur.canon == "front":
+            cur = Section(display, classify_heading(title), 1)
+            sections.append(cur)
+            sub = None
+            seen = True
+            if remainder:
+                cur.lines.append(remainder)
+        else:
+            sub = Section(display, "sub", level)
+            cur.subsections.append(sub)
+    return sections
+
+
+def extract_keywords(sections: List[Section]) -> List[str]:
+    for sec in sections:
+        if sec.canon not in ("front", "abstract", "introduction"):
+            continue
+        for i, ln in enumerate(sec.lines):
+            m = KEYWORD_LINE.match(ln)
+            if not m:
+                continue
+            chunk, j = m.group(1), i + 1
+            while (j < len(sec.lines) and j < i + 3 and not chunk.rstrip().endswith(".")
+                   and not NUM_HEAD.match(sec.lines[j]) and not PLAIN_HEAD.match(sec.lines[j])):
+                chunk += " " + sec.lines[j]
+                j += 1
+            del sec.lines[i:j]
+            kws = [k.strip(" .") for k in re.split(r"[,;·•|]", chunk) if k.strip(" .")]
+            return [k for k in kws if 2 < len(k) <= 40][:10]
+    return []
+
+
+_CONNECT = {"for", "of", "and", "in", "with", "on", "using", "the", "a", "an", "to", "by",
+            "via", "from", "towards", "toward", "based", "through", "into"}
+
+
+def guess_title(front_lines: List[str], meta_title: Optional[str]) -> str:
+    if meta_title:
+        mt = re.sub(r"\s+", " ", meta_title).strip()
+        if len(mt.split()) >= 3 and not re.search(r"microsoft|untitled|\.(docx?|pdf|tex)$", mt, re.I):
+            return mt
+    lines = [l for l in front_lines if l.strip() and not l.startswith(HEAD_MARK)]
+    noisy = re.compile(r"arxiv|https?://|doi|vol\.|issn|©|copyright|preprint", re.I)
+    for i, l in enumerate(lines[:8]):
+        if len(l.split()) < 3 or noisy.search(l) or "@" in l:
+            continue
+        title, last = l, l
+        author_like = re.compile(r"[,@\d]|department|university|institute|school|college|"
+                                 r"laborator|\band\b.*\b[A-Z]\.", re.I)
+        for nxt in lines[i + 1:i + 4]:
+            wrapped = (len(last) >= 38 or last.split()[-1].lower().strip(":,") in _CONNECT
+                       or last.endswith((":", "-")) or nxt[:1].islower())
+            if not wrapped or author_like.search(nxt) or len(nxt.split()) > 14:
+                break
+            title += " " + nxt
+            last = nxt
+        return title.strip()
+    return "Untitled paper"
+
+
+# --------------------------------------------------------------------------
+# Public entry point
+# --------------------------------------------------------------------------
+def parse_paper(path: str | Path) -> Paper:
+    path = Path(path)
+    ext = path.suffix.lower()
+    if ext == ".pdf":
+        lines, meta, pages = read_pdf(path)
+    elif ext in (".docx",):
+        lines, meta, pages = read_docx(path)
+    elif ext in (".txt", ".md"):
+        lines, meta, pages = read_txt(path)
+    else:
+        raise ValueError(f"Unsupported file type '{ext}'. Upload a PDF, DOCX or TXT file.")
+
+    if sum(len(l.split()) for l in lines) < 150:
+        raise ValueError("Almost no text could be extracted. If this is a scanned PDF, "
+                         "run OCR on it first and upload the searchable version.")
+
+    sections = split_sections(lines)
+    keywords = extract_keywords(sections)
+    title = guess_title(sections[0].lines, meta)
+    return Paper(title=title, keywords=keywords, sections=sections, pages=pages, source=path.name)
+
+
+if __name__ == "__main__":  # quick debug:  python paper_parser.py paper.pdf
+    import sys
+
+    p = parse_paper(sys.argv[1])
+    print("TITLE   :", p.title)
+    print("KEYWORDS:", p.keywords)
+    for s in p.sections:
+        print(f"  [{s.canon:<16}] {s.heading[:60]:<60} {s.word_count:>6} words  "
+              f"({len(s.subsections)} subsections)")
+</script>
+<script type="text/plain" id="src-analyzer">"""
+analyzer.py
+-----------
+Step 2 of the pipeline: turn a parsed Paper into the *content* each diagram
+needs.  Everything is rule-based (no LLM, no network), so it is fast,
+deterministic and works offline.
+
+Produces
+    * section_words  - words per section            -> structure chart
+    * concepts/edges - key terms + co-occurrence    -> concept map
+    * steps          - ordered method steps         -> workflow flowchart
+    * results        - table / percentages / terms  -> results chart
+    * abstract_parts - problem / approach / ...     -> framework diagram
+"""
+from __future__ import annotations
+
+import re
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
+from paper_parser import CANON_LABEL, Paper
+
+# --------------------------------------------------------------------------
+# Text helpers
+# --------------------------------------------------------------------------
+_ABBR = ["e.g.", "i.e.", "et al.", "Fig.", "Figs.", "Eq.", "Eqs.", "vs.", "etc.", "Dr.",
+         "No.", "Sec.", "Tab.", "approx.", "cf."]
+
+
+def split_sentences(text: str) -> List[str]:
+    t = text
+    for a in _ABBR:
+        t = t.replace(a, a.replace(".", "<dot>"))
+    t = re.sub(r"(\d)\.(\d)", r"\1<dot>\2", t)
+    parts = re.split(r"(?<=[.!?])\s+(?=[A-Z(\[])", t)
+    return [p.replace("<dot>", ".").strip() for p in parts if len(p.strip()) > 25]
+
+
+def trim(text: str, n: int) -> str:
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= n:
+        return text
+    cut = text[:n].rsplit(" ", 1)[0].rstrip(" ,;:-")
+    return cut + "…"
+
+
+STOP = set("""
+a about above after again against all also am an and any are as at be because been before being below
+between both but by can could did do does doing down during each either else few for from further had has
+have having he her here hers him his how however i if in into is it its itself just may me might more most
+much must my no nor not now of off on once only or other our ours out over own same she should so some such
+than that the their theirs them then there these they this those through thus to too under until up upon us
+use used uses using very via was we were what when where whether which while who whom why will with within
+without would yet you your among across along around per since toward towards whose whereas hence therefore
+thereby although though unless
+paper papers propose proposed proposes present presents presented approach approaches based method methods
+methodology study studies work works result results show shows shown showed table figure fig section sections
+et al etc new one two three first second third finally next then respectively different various several many
+number numbers set sets order given overall well case cases way ways example examples however moreover
+furthermore additionally specifically particularly generally recent recently existing previous current
+conclusion conclusions introduction abstract experiment experiments experimental evaluation evaluate evaluated
+analysis analyses discussed discuss discussion article research researchers authors author find found finding
+findings important significant significantly better best high higher highest low lower lowest large larger
+small smaller good great like make made makes making take takes taken need needs needed able often
+state-of-the-art real-world well-known
+""".split())
+
+
+TOKEN = re.compile(r"[A-Za-z]+(?:-[A-Za-z]+)*")
+
+
+def stem(w: str) -> str:
+    w = w.lower()
+    if len(w) > 4 and w.endswith("ies"):
+        return w[:-3] + "y"
+    if len(w) > 4 and w.endswith("s") and not w.endswith(("ss", "us", "is")):
+        return w[:-1]
+    return w
+
+
+# --------------------------------------------------------------------------
+# Result container
+# --------------------------------------------------------------------------
+@dataclass
+class Analysis:
+    section_words: List[Tuple[str, int]] = field(default_factory=list)
+    total_words: int = 0
+    concepts: List[Dict] = field(default_factory=list)       # {"label", "freq"}
+    edges: List[Tuple[int, int, int]] = field(default_factory=list)
+    steps: List[Dict] = field(default_factory=list)          # {"title", "detail"}
+    steps_source: str = ""
+    abstract_parts: Dict[str, str] = field(default_factory=dict)
+    results: Dict = field(default_factory=dict)
+
+
+# --------------------------------------------------------------------------
+# 1. Words per section
+# --------------------------------------------------------------------------
+def section_distribution(paper: Paper) -> List[Tuple[str, int]]:
+    order = ["abstract", "introduction", "related_work", "methodology", "results",
+             "discussion", "conclusion", "other"]
+    words: Counter = Counter()
+    for s in paper.body_sections:
+        words[s.canon if s.canon in order else "other"] += s.word_count
+    return [(CANON_LABEL[k], words[k]) for k in order if words[k] > 0]
+
+
+# --------------------------------------------------------------------------
+# 2. Key concepts + co-occurrence
+# --------------------------------------------------------------------------
+def body_sentences(paper: Paper) -> List[str]:
+    out: List[str] = []
+    for s in paper.body_sections:
+        for sent in split_sentences(s.text):
+            digits = sum(ch.isdigit() for ch in sent)
+            if digits / max(len(sent), 1) < 0.2:       # skip table debris
+                out.append(sent)
+    return out
+
+
+def extract_concepts(paper: Paper, sentences: List[str], k: int = 10):
+    uni: Counter = Counter()
+    bi: Counter = Counter()
+    tri: Counter = Counter()
+    forms: Dict[tuple, Counter] = defaultdict(Counter)
+
+    for sent in sentences:
+        prev = prev2 = None  # (stem, form, end_pos)
+        for m in TOKEN.finditer(sent):
+            raw, low = m.group(0), m.group(0).lower()
+            is_acr = raw.isupper() and len(raw) >= 2
+            if low in STOP or low.isdigit() or (len(low) < 3 and not is_acr):
+                prev = prev2 = None
+                continue
+            st, form = stem(low), (raw if is_acr else low)
+            uni[st] += 1
+            forms[(st,)][(form,)] += 1
+            if prev and sent[prev[2]:m.start()].strip() == "":
+                bi[(prev[0], st)] += 1
+                forms[(prev[0], st)][(prev[1], form)] += 1
+                if prev2 and sent[prev2[2]:prev[2] - len(prev[1])].strip() == "":
+                    tri[(prev2[0], prev[0], st)] += 1
+                    forms[(prev2[0], prev[0], st)][(prev2[1], prev[1], form)] += 1
+                prev2 = prev
+            else:
+                prev2 = None
+            prev = (st, form, m.end())
+
+    kw_keys = set()
+    for kw in paper.keywords:
+        toks = tuple(stem(t.lower()) for t in TOKEN.findall(kw) if t.lower() not in STOP)
+        if 1 <= len(toks) <= 3:
+            kw_keys.add(toks)
+
+    selected: List[tuple] = []
+    freq: Dict[tuple, int] = {}
+    for uni_min, bi_min in ((3, 2), (2, 2), (2, 1), (1, 1)):
+        cands: Dict[tuple, float] = {}
+        for key, c in tri.items():
+            if c >= bi_min:
+                cands[key] = c * 3.0
+                freq[key] = c
+        for key, c in bi.items():
+            if c >= bi_min:
+                cands[key] = c * 2.0
+                freq[key] = c
+        for st, c in uni.items():
+            if c >= uni_min:
+                cands[(st,)] = float(c)
+                freq[(st,)] = c
+        for key in kw_keys:
+            if key in cands:
+                cands[key] += 6
+        ranked = sorted(cands, key=lambda x: (-cands[x], x))
+
+        def covered(key, pool):
+            """key is a contiguous part of a longer, similarly frequent selected term"""
+            return any(len(b) > len(key) and
+                       any(b[i:i + len(key)] == key for i in range(len(b) - len(key) + 1)) and
+                       freq[b] >= 0.5 * freq[key] for b in pool)
+
+        selected = []
+        for key in ranked:
+            if covered(key, selected):
+                continue
+            selected.append(key)
+            if len(selected) >= k + 5:
+                break
+        selected = [key for key in selected if not covered(key, selected)][:k]
+        if len(selected) >= 6:
+            break
+
+    def label_of(key: tuple) -> str:
+        best = forms[key].most_common(1)[0][0]
+        return " ".join(w if w.isupper() and len(w) > 1 else w.capitalize() for w in best)
+
+    concepts = [{"label": label_of(key), "freq": freq[key]} for key in selected]
+
+    # sliding window of two sentences for co-occurrence
+    present: List[set] = []
+    for sent in sentences:
+        toks = [(stem(m.group(0).lower())) for m in TOKEN.finditer(sent)
+                if m.group(0).lower() not in STOP]
+        tokset = set(toks)
+        grams = {(1, g) for g in toks}
+        for n_ in (2, 3):
+            grams |= {(n_, tuple(toks[i:i + n_])) for i in range(len(toks) - n_ + 1)}
+        present.append({i for i, key in enumerate(selected)
+                        if (len(key) == 1 and key[0] in tokset) or (len(key), key) in grams})
+    co: Counter = Counter()
+    for i in range(len(present)):
+        win = present[i] | (present[i + 1] if i + 1 < len(present) else set())
+        win_list = sorted(win)
+        for a in range(len(win_list)):
+            for b in range(a + 1, len(win_list)):
+                co[(win_list[a], win_list[b])] += 1
+    edges = [(a, b, w) for (a, b), w in co.items() if w >= 1]
+    edges.sort(key=lambda e: -e[2])
+    return concepts, edges[:22]
+
+
+# --------------------------------------------------------------------------
+# 3. Method steps
+# --------------------------------------------------------------------------
+_GENERIC_HEADS = {"overview", "introduction", "preliminaries", "notation", "notations",
+                  "background", "problem definition", "problem formulation", "summary"}
+_STEP_CUES = re.compile(
+    r"\b(first|second|third|then|next|after|finally|subsequently|step|stage|phase|"
+    r"collect|preprocess|pre-process|extract|normali[sz]e|train|fine-tune|split|select|"
+    r"apply|applied|employ|feed|fed|classif|segment|encode|decode|optimi[sz]e|validate|"
+    r"evaluate|compute|calculate|generate|construct|design|implement|build)\w*", re.I)
+_LEAD = re.compile(
+    r"^(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|next|then|finally|subsequently|"
+    r"after that|in this (?:paper|work|section|step|stage)|in the (?:first|second|third) "
+    r"(?:step|stage|phase)|to (?:do|achieve) this|in addition)[,\s]+", re.I)
+
+
+def shorten(sentence: str, limit: int = 66) -> str:
+    s = _LEAD.sub("", sentence.strip())
+    s = re.sub(r"^(?:we|the proposed (?:method|approach|model|system|framework)|our (?:method|approach)) "
+               r"(?:then |also |first )?", "", s, flags=re.I)
+    s = re.sub(r"\s*\([^)]{0,60}\)", "", s)          # drop parentheticals
+    s = s.rstrip(".")
+    if len(s) > limit:
+        for sep in (r";", r",(?!\d)", r" which ", r" where ", r" that ", r" using ", r" in order to "):
+            head = re.split(sep, s)[0]
+            if 18 <= len(head) <= limit:
+                s = head
+                break
+    s = trim(s, limit)
+    return s[:1].upper() + s[1:]
+
+
+def extract_steps(paper: Paper, max_steps: int = 6) -> Tuple[List[Dict], str]:
+    secs = paper.by_canon("methodology")
+
+    # (a) sub-section headings are the cleanest description of a workflow
+    subs = []
+    for sec in secs:
+        for sub in sec.subsections:
+            title = re.sub(r"^\s*(?:\d+(?:\.\d+)*\.?|[IVX]+\.|[A-Z]\.)\s+", "", sub.heading).strip()
+            if title.lower() not in _GENERIC_HEADS and 2 <= len(title) <= 70:
+                first = split_sentences(sub.text)
+                subs.append({"title": trim(title, 48),
+                             "detail": shorten(first[0], 78) if first else ""})
+    if len(subs) >= 3:
+        if len(subs) > max_steps:
+            idx = sorted({round(i * (len(subs) - 1) / (max_steps - 1)) for i in range(max_steps)})
+            subs = [subs[i] for i in idx]
+        return subs, "subsection headings"
+
+    # (b) otherwise pick the most procedural sentences, keep reading order
+    text = " ".join(s.text for s in secs) if secs else ""
+    sents = split_sentences(text)
+    source = "methodology section"
+    if len(sents) < 3:
+        sents = [s for s in body_sentences(paper) if _STEP_CUES.search(s)]
+        source = "paper body"
+    scored = []
+    for i, s in enumerate(sents):
+        if len(s) > 400:
+            continue
+        score = len(_STEP_CUES.findall(s)) + (2 if re.match(r"(?i)(first|second|third|then|next|finally)", s) else 0)
+        scored.append((score, i, s))
+    top = sorted(sorted(scored, key=lambda x: (-x[0], x[1]))[:max_steps], key=lambda x: x[1])
+    steps = [{"title": shorten(s), "detail": ""} for _, _, s in top]
+    if len(steps) < 3:       # last resort: generic research pipeline
+        steps = [{"title": t, "detail": ""} for t in
+                 ("Problem definition", "Data collection", "Proposed method", "Experiments", "Analysis")]
+        source = "generic template (methodology not detected)"
+    return steps, source
+
+
+# --------------------------------------------------------------------------
+# 4. Abstract -> problem / approach / results / impact
+# --------------------------------------------------------------------------
+_CUES = {
+    "problem": r"\b(however|challeng\w*|problem|limited|limitation|lack\w*|issue|difficult\w*|"
+               r"need|gap|despite|increasing\w*|growing|critical|crucial|suffer\w*|existing)\b",
+    "approach": r"\b(propos\w*|present\w*|develop\w*|introduc\w*|design\w*|novel|framework|"
+                r"approach|method|model|architecture|algorithm|we (?:use|employ|build|apply)|"
+                r"this (?:paper|study|work|article))\b",
+    "results": r"\b(result\w*|achiev\w*|outperform\w*|accuracy|improv\w*|demonstrat\w*|show\w*|"
+               r"experiment\w*|evaluat\w*|compared|reach\w*|obtain\w*|\d+(?:\.\d+)?\s?%)",
+    "impact": r"\b(conclude\w*|future|can be|enable\w*|potential|suggest\w*|contribut\w*|"
+              r"implication\w*|practical|useful|applicab\w*|pave|promising|benefit\w*)\b",
+}
+_ORDER = ["problem", "approach", "results", "impact"]
+
+
+def abstract_parts(paper: Paper) -> Dict[str, str]:
+    text = paper.abstract
+    if len(text.split()) < 40:           # no real abstract -> use opening of the introduction
+        intro = paper.first("introduction")
+        text = (text + " " + (intro.text if intro else "")).strip()
+        text = " ".join(split_sentences(text)[:8])
+    sents = split_sentences(text)[:10]
+    if not sents:
+        return {k: "" for k in _ORDER}
+
+    labels, floor = [], 0
+    for i, s in enumerate(sents):
+        scores = [len(re.findall(_CUES[k], s, re.I)) for k in _ORDER]
+        best = max(range(4), key=lambda j: (scores[j], -abs(j - floor)))
+        cat = best if max(scores) > 0 else min(3, int(4 * i / len(sents)))
+        cat = max(cat, floor)            # abstracts are narrated in order
+        labels.append(cat)
+        floor = cat
+    if len(set(labels)) < 3:             # cues too weak -> split by position
+        labels = [min(3, int(4 * i / len(sents))) for i in range(len(sents))]
+
+    parts = {}
+    for j, k in enumerate(_ORDER):
+        chosen = [s for s, l in zip(sents, labels) if l == j]
+        parts[k] = trim(" ".join(chosen), 230) if chosen else ""
+    for j, k in enumerate(_ORDER):       # never leave a box empty
+        if not parts[k]:
+            parts[k] = parts[_ORDER[max(0, j - 1)]] if j else sents[0]
+    return parts
+
+
+# --------------------------------------------------------------------------
+# 5. Results: table -> percentages -> term frequencies
+# --------------------------------------------------------------------------
+_BAD_LABEL = re.compile(r"^(table|fig|figure|section|eq|equation|algorithm|step|page|epoch|fold|"
+                        r"layer|chapter|sec)\b", re.I)
+_ROW = re.compile(r"^(?P<label>[A-Za-z][A-Za-z0-9_\-+./()& ]{0,44}?)\s+"
+                  r"(?P<nums>-?\d+(?:\.\d+)?%?(?:\s+-?\d+(?:\.\d+)?%?)*)$")
+_FIRST_COL = {"model", "method", "algorithm", "approach", "classifier", "technique", "system",
+              "dataset", "network", "architecture", "scheme", "metric", "name", "case"}
+
+
+def _to_num(tok: str) -> float:
+    return float(tok.rstrip("%"))
+
+
+_NUM = re.compile(r"^-?\d+(?:\.\d+)?%?$")
+_CELL = re.compile(r"^[A-Za-z][A-Za-z0-9_\-+./()& ]{0,44}$")
+
+
+def _table_rows(lines: List[str]):
+    """Rows as (start, end, label, values). Handles 'CNN 92.1 91.5' on one line and
+    the one-cell-per-line layout that PDF text extraction often produces."""
+    rows, i = [], 0
+    while i < len(lines):
+        ln = lines[i].strip()
+        m = _ROW.match(ln)
+        if m:                                              # horizontal row
+            label = m.group("label").strip()
+            if not _BAD_LABEL.match(label) and len(label.split()) <= 5:
+                rows.append((i, i + 1, label, [_to_num(n) for n in m.group("nums").split()]))
+            i += 1
+            continue
+        if _CELL.match(ln) and len(ln.split()) <= 5 and not _BAD_LABEL.match(ln):
+            j = i + 1                                      # vertical row
+            while j < len(lines) and _NUM.match(lines[j].strip()):
+                j += 1
+            if j > i + 1:
+                rows.append((i, j, ln, [_to_num(x.strip()) for x in lines[i + 1:j]]))
+                i = j
+                continue
+        i += 1
+    return rows
+
+
+def _table_header(lines: List[str], start: int, ncols: int) -> List[str]:
+    if start > 0:                                          # header on a single line
+        toks = re.sub(r"\(%\)|%", "", lines[start - 1]).split()
+        if toks and toks[0].lower() in _FIRST_COL and len(toks) == ncols + 1:
+            toks = toks[1:]
+        if len(toks) >= ncols and all(re.match(r"[A-Za-z]", t) for t in toks):
+            return toks[-ncols:]
+    for extra in (1, 0):                                   # header, one cell per line
+        k = ncols + extra
+        if start - k >= 0:
+            cells = [lines[start - k + t].strip() for t in range(k)]
+            if all(1 <= len(c.split()) <= 3 and re.match(r"[A-Za-z]", c) and not c.endswith(".")
+                   for c in cells):
+                cells = cells[extra:]
+                return [c.replace("(%)", "").strip() for c in cells]
+    return []
+
+
+def _find_table(lines: List[str]) -> Optional[Dict]:
+    rows = _table_rows(lines)
+    best, group = None, []
+
+    def close(g):
+        nonlocal best
+        if len(g) >= 3:
+            score = len(g) * len(g[0][3]) + (3 if len(g[0][3]) >= 2 else 0)
+            if best is None or score > best[0]:
+                best = (score, g)
+
+    for r in rows:
+        if group and r[0] == group[-1][1] and len(r[3]) == len(group[-1][3]):
+            group.append(r)
+        else:
+            close(group)
+            group = [r]
+    close(group)
+    if not best:
+        return None
+
+    g = best[1]
+    ncols = len(g[0][3])
+    header = _table_header(lines, g[0][0], ncols) or [f"Metric {i + 1}" for i in range(ncols)]
+
+    # keep columns on a comparable scale so one axis can host them all
+    ref = max(abs(r[3][0]) for r in g) or 1
+    keep = [c for c in range(ncols)
+            if 0.2 <= (max(abs(r[3][c]) for r in g) or 1) / ref <= 5][:4] or [0]
+    g = g[:10]
+    return {"kind": "table", "labels": [r[2] for r in g], "series": [header[c] for c in keep],
+            "values": [[r[3][c] for c in keep] for r in g]}
+
+
+_PCT = re.compile(r"(\d{1,3}(?:\.\d+)?)\s?%")
+_METRIC = re.compile(r"\b(accuracy|precision|recall|f1(?:-score)?|f-measure|auc|sensitivity|"
+                     r"specificity|improvement|reduction|error rate|efficiency|throughput|"
+                     r"success rate|detection rate)\b", re.I)
+_NAME = re.compile(r"\b([A-Z][A-Za-z0-9\-]*(?:\s[A-Z][A-Za-z0-9\-]*){0,2})\b")
+_SKIP_NAMES = {"The", "Our", "We", "This", "In", "It", "Table", "Figure", "However", "These",
+               "For", "As", "On", "With", "Both", "While", "Overall", "Results", "Fig", "Moreover",
+               "Furthermore", "Compared", "Among", "At", "By", "An", "A", "To", "When", "Although"}
+
+
+def _find_percentages(sentences: List[str]) -> Optional[Dict]:
+    found: Dict[str, float] = {}
+    for sent in sentences:
+        for m in _PCT.finditer(sent):
+            before = sent[:m.start()]
+            names = [n for n in _NAME.findall(before) if n.split()[0] not in _SKIP_NAMES]
+            metric = _METRIC.findall(before)
+            name = names[-1] if names else ""
+            met = metric[-1].title() if metric else ""
+            label = f"{name} ({met})" if name and met else (name or met)
+            if not label:
+                continue
+            label = trim(label, 30)
+            if label not in found:
+                found[label] = float(m.group(1))
+            if len(found) >= 8:
+                break
+    if len(found) >= 3:
+        items = list(found.items())
+        return {"kind": "percent", "labels": [k for k, _ in items], "values": [v for _, v in items]}
+    return None
+
+
+def extract_results(paper: Paper, concepts: List[Dict]) -> Dict:
+    res_secs = paper.by_canon("results") + paper.by_canon("discussion")
+    lines = [l for s in res_secs for l in s.lines]
+    table = _find_table(lines) if lines else None
+    if not table:
+        table = _find_table([l for s in paper.body_sections for l in s.lines])
+    if table:
+        return table
+
+    sents = [s for sec in (res_secs or paper.body_sections) for s in split_sentences(sec.text)]
+    pct = _find_percentages(sents) or _find_percentages(body_sentences(paper))
+    if pct:
+        return pct
+
+    top = sorted(concepts, key=lambda c: -c["freq"])[:8]
+    return {"kind": "terms", "labels": [c["label"] for c in top], "values": [c["freq"] for c in top]}
+
+
+# --------------------------------------------------------------------------
+# Public entry point
+# --------------------------------------------------------------------------
+def analyze(paper: Paper) -> Analysis:
+    a = Analysis()
+    a.section_words = section_distribution(paper)
+    a.total_words = sum(w for _, w in a.section_words)
+    sents = body_sentences(paper)
+    a.concepts, a.edges = extract_concepts(paper, sents)
+    a.steps, a.steps_source = extract_steps(paper)
+    a.abstract_parts = abstract_parts(paper)
+    a.results = extract_results(paper, a.concepts)
+    return a
+</script>
+<script type="text/plain" id="src-diagram_maker">"""
+diagram_maker.py
+----------------
+Step 3 of the pipeline: draw publication-quality diagrams from an Analysis.
+
+Design rules (so the output can go straight into a journal manuscript):
+  * strictly black & white  (pure black ink on white, hatch patterns instead of
+    colour, line-style/line-width instead of colour)
+  * serif font (DejaVu Serif ships with matplotlib, so layout is identical on
+    every machine)
+  * 300 dpi PNG + vector SVG + vector PDF for every figure
+  * no title inside the picture - captions belong in the manuscript
+"""
+from __future__ import annotations
+
+import math
+import textwrap
+from pathlib import Path
+from typing import Dict, List
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Rectangle  # noqa: E402
+from PIL import Image  # noqa: E402
+
+from analyzer import Analysis, trim  # noqa: E402
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["DejaVu Serif"],
+    "figure.facecolor": "white",
+    "axes.facecolor": "white",
+    "savefig.facecolor": "white",
+    "text.color": "black",
+    "axes.edgecolor": "black",
+    "axes.labelcolor": "black",
+    "xtick.color": "black",
+    "ytick.color": "black",
+    "hatch.linewidth": 1.0,
+    "axes.linewidth": 1.3,
+    "svg.fonttype": "path",
+    "pdf.fonttype": 42,
+})
+
+HATCHES = ["///", "\\\\\\", "xxx", "...", "---", "|||", "+++", "ooo"]
+BLACK, WHITE = "black", "white"
+
+
+# --------------------------------------------------------------------------
+# helpers
+# --------------------------------------------------------------------------
+def cpl(width_in: float, fs: float, bold: bool = False) -> int:
+    """characters per line that fit in width_in inches (DejaVu Serif is wide)."""
+    return max(6, int(width_in * 72 / (fs * (0.68 if bold else 0.60))))
+
+
+def wrap(text: str, width_in: float, fs: float, bold: bool = False, max_lines: int | None = None):
+    lines = textwrap.wrap(text, cpl(width_in, fs, bold), break_long_words=False) or [""]
+    if max_lines and len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = lines[-1].rstrip(" .,;:") + "…"
+    return lines
+
+
+def canvas(w: float, h: float):
+    """Figure whose data coordinates are inches - makes box layout predictable."""
+    fig = plt.figure(figsize=(w, h))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, w)
+    ax.set_ylim(0, h)
+    ax.axis("off")
+    return fig, ax
+
+
+def despine(ax):
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+
+
+def arrow(ax, p0, p1, lw=1.7, style="-|>", ms=15, dashed=False):
+    ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle=style, mutation_scale=ms, lw=lw,
+                                 color=BLACK, shrinkA=0, shrinkB=0, zorder=5,
+                                 linestyle=(0, (5, 3)) if dashed else "-"))
+
+
+def save_all(fig, outdir: Path, stem: str) -> Dict[str, str]:
+    outdir.mkdir(parents=True, exist_ok=True)
+    files = {}
+    for ext in ("png", "svg", "pdf"):
+        path = outdir / f"{stem}.{ext}"
+        kw = {"dpi": 300} if ext == "png" else {}
+        fig.savefig(path, bbox_inches="tight", pad_inches=0.15, **kw)
+        files[ext] = path.name
+    plt.close(fig)
+    png = outdir / files["png"]
+    Image.open(png).convert("L").save(png, dpi=(300, 300), optimize=True)   # guarantee: no colour
+    return files
+
+
+# --------------------------------------------------------------------------
+# Fig A - paper structure (words per section)
+# --------------------------------------------------------------------------
+def fig_structure(a: Analysis, outdir: Path, stem: str):
+    data = a.section_words
+    n = len(data)
+    fig, ax = plt.subplots(figsize=(8.6, 0.62 * n + 1.5))
+    vals = [v for _, v in data]
+    total = sum(vals) or 1
+    for i, (label, v) in enumerate(data):
+        ax.barh(i, v, height=0.62, facecolor=WHITE, edgecolor=BLACK,
+                hatch=HATCHES[i % len(HATCHES)], linewidth=1.4)
+        ax.text(v + max(vals) * 0.015, i, f"{v:,} words ({100 * v / total:.0f}%)",
+                va="center", fontsize=9.5)
+    ax.set_yticks(range(n))
+    ax.set_yticklabels([d[0] for d in data], fontsize=11)
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(vals) * 1.42)
+    ax.set_xlabel("Length of section (words)", fontsize=10.5)
+    ax.tick_params(axis="x", labelsize=9.5, width=1.2)
+    ax.tick_params(axis="y", length=0)
+    ax.xaxis.grid(True, linestyle=(0, (1, 4)), color=BLACK, linewidth=0.6)
+    ax.set_axisbelow(True)
+    despine(ax)
+    fig.tight_layout()
+    return save_all(fig, outdir, stem)
+
+
+# --------------------------------------------------------------------------
+# Fig B - concept map
+# --------------------------------------------------------------------------
+def fig_concepts(a: Analysis, outdir: Path, stem: str):
+    # keep the strongest links, but make sure every drawn concept keeps its best link;
+    # concepts that never co-occur with another one are left out of the map
+    all_edges = sorted(a.edges, key=lambda e: -e[2])
+    keep = {(i, j, w) for i, j, w in all_edges[:12]}
+    best_of = {}
+    for i, j, w in all_edges:
+        for node in (i, j):
+            best_of.setdefault(node, (i, j, w))
+    keep |= set(best_of.values())
+    used = sorted({i for e in keep for i in e[:2]})
+    remap = {old: new for new, old in enumerate(used)}
+    C = [a.concepts[i] for i in used] or a.concepts
+    edges = sorted(((remap[i], remap[j], w) for i, j, w in keep), key=lambda e: -e[2])
+    n = len(C)
+    W, H = 10.0, 6.8
+    fig, ax = canvas(W, H)
+    freq = np.array([c["freq"] for c in C], float)
+    wmat = np.zeros((n, n))
+    for i, j, w in edges:
+        wmat[i, j] = wmat[j, i] = w
+    multi = np.array([1.0 if " " in c["label"] else 0.0 for c in C])
+    center = int(np.argmax(wmat.sum(axis=1) * (1 + multi) + freq * 0.01))
+    rem = {i for i in range(n) if i != center}
+    order: List[int] = []
+    cur = max(rem, key=lambda i: (wmat[center, i], wmat[i].sum())) if rem else None
+    while rem:
+        order.append(cur)
+        rem.remove(cur)
+        if rem:
+            cur = max(rem, key=lambda i: (wmat[order[-1], i], wmat[i].sum()))
+    pos = {center: (W / 2, H / 2)}
+    rx, ry = 3.55, 2.5
+    for k, i in enumerate(order):
+        ang = math.pi / 2 - 2 * math.pi * (k + 0.5) / max(len(order), 1)
+        pos[i] = (W / 2 + rx * math.cos(ang), H / 2 + ry * math.sin(ang))
+
+    # node boxes
+    boxes = {}
+    for i, c in enumerate(C):
+        fs = 12.5 if i == center else 10.5
+        lines = wrap(c["label"], 1.7, fs, bold=(i == center), max_lines=3)
+        lh = fs * 1.3 / 72
+        w = max(len(l) for l in lines) * fs * (0.68 if i == center else 0.60) / 72 + 0.4
+        h = len(lines) * lh + 0.3
+        boxes[i] = (lines, fs, w, h, lh)
+
+    # edges first (below the boxes)
+    if edges:
+        wmax = max(e[2] for e in edges)
+        med = float(np.median([e[2] for e in edges]))
+        for i, j, w in edges:
+            (x0, y0), (x1, y1) = pos[i], pos[j]
+            ax.plot([x0, x1], [y0, y1], color=BLACK, lw=0.8 + 3.4 * w / wmax,
+                    linestyle="-" if w > med else (0, (5, 3)), zorder=1, solid_capstyle="butt")
+
+    fmax = freq.max() or 1
+    for i, c in enumerate(C):
+        lines, fs, w, h, lh = boxes[i]
+        x, y = pos[i]
+        lw = 1.2 + 2.2 * freq[i] / fmax
+        if i == center:
+            ax.add_patch(FancyBboxPatch((x - w / 2 - 0.09, y - h / 2 - 0.09), w + 0.18, h + 0.18,
+                                        boxstyle="round,pad=0.02,rounding_size=0.2",
+                                        fc=WHITE, ec=BLACK, lw=1.2, zorder=2))
+        ax.add_patch(FancyBboxPatch((x - w / 2, y - h / 2), w, h,
+                                    boxstyle="round,pad=0.02,rounding_size=0.18",
+                                    fc=WHITE, ec=BLACK, lw=lw, zorder=3))
+        top = y + len(lines) * lh / 2
+        for k, ln in enumerate(lines):
+            ax.text(x, top - (k + 0.5) * lh, ln, ha="center", va="center", fontsize=fs,
+                    fontweight="bold" if i == center else "normal", zorder=4)
+
+    ax.text(0.15, 0.15, "Line thickness (solid = strong, dashed = weak): co-occurrence of two concepts.   "
+            "Border thickness: frequency of the concept.", fontsize=8.3, va="bottom", ha="left")
+    return save_all(fig, outdir, stem)
+
+
+# --------------------------------------------------------------------------
+# Fig C - methodology flowchart
+# --------------------------------------------------------------------------
+def fig_workflow(a: Analysis, outdir: Path, stem: str):
+    steps = a.steps
+    n = len(steps)
+    cols = n if n <= 3 else (2 if n == 4 else 3)
+    rows = math.ceil(n / cols)
+    bw, bh, gx, gy, m = 3.1, 1.7, 0.85, 0.9, 0.45
+    W = cols * bw + (cols - 1) * gx + 2 * m
+    H = rows * bh + (rows - 1) * gy + 2 * m
+    fig, ax = canvas(W, H)
+
+    origin = []
+    for i in range(n):
+        r, c = divmod(i, cols)
+        if r % 2 == 1:                       # serpentine: row 2 runs right -> left
+            c = cols - 1 - c
+        origin.append((m + c * (bw + gx), H - m - bh - r * (bh + gy)))
+
+    for i, (st, (x, y)) in enumerate(zip(steps, origin)):
+        ax.add_patch(FancyBboxPatch((x, y), bw, bh, boxstyle="round,pad=0.02,rounding_size=0.14",
+                                    fc=WHITE, ec=BLACK, lw=1.9, zorder=2))
+        # text block, vertically centred
+        tfs, dfs = 10.8, 8.6
+        has_detail = bool(st.get("detail"))
+        tl = wrap(st["title"], bw - 0.55, tfs, bold=has_detail, max_lines=3 if has_detail else 4)
+        dl = wrap(st["detail"], bw - 0.55, dfs, max_lines=3) if has_detail else []
+        lh_t, lh_d = tfs * 1.3 / 72, dfs * 1.3 / 72
+        total = len(tl) * lh_t + (0.1 + len(dl) * lh_d if dl else 0)
+        ytop = y + bh / 2 + total / 2
+        for k, ln in enumerate(tl):
+            ax.text(x + bw / 2, ytop - (k + 0.5) * lh_t, ln, ha="center", va="center",
+                    fontsize=tfs, fontweight="bold" if has_detail else "normal", zorder=4)
+        for k, ln in enumerate(dl):
+            ax.text(x + bw / 2, ytop - len(tl) * lh_t - 0.1 - (k + 0.5) * lh_d, ln, ha="center",
+                    va="center", fontsize=dfs, style="italic", zorder=4)
+        ax.add_patch(Circle((x + 0.02, y + bh - 0.02), 0.2, fc=BLACK, ec=BLACK, zorder=6))
+        ax.text(x + 0.02, y + bh - 0.025, str(i + 1), color=WHITE, ha="center", va="center",
+                fontsize=11, fontweight="bold", zorder=7)
+
+    for i in range(n - 1):
+        (x0, y0), (x1, y1) = origin[i], origin[i + 1]
+        if abs(y0 - y1) < 1e-6:              # same row
+            yc = y0 + bh / 2
+            if x1 > x0:
+                arrow(ax, (x0 + bw, yc), (x1, yc))
+            else:
+                arrow(ax, (x0, yc), (x1 + bw, yc))
+        else:                                # drop to next row
+            arrow(ax, (x0 + bw / 2, y0), (x1 + bw / 2, y1 + bh))
+    return save_all(fig, outdir, stem)
+
+
+# --------------------------------------------------------------------------
+# Fig D - results
+# --------------------------------------------------------------------------
+def _style(i: int):
+    return [(BLACK, ""), (WHITE, "///"), (WHITE, "xxx"), (WHITE, "...")][i % 4]
+
+
+def fig_results(a: Analysis, outdir: Path, stem: str):
+    r = a.results
+    kind, labels, values = r["kind"], r["labels"], r["values"]
+
+    if kind == "table":
+        n, m = len(labels), len(r["series"])
+        fig, ax = plt.subplots(figsize=(max(7.6, 1.15 * n + 1.2 * m), 5.0))
+        bw = 0.8 / m
+        rotate = n * m > 18
+        for s in range(m):
+            fc, hatch = _style(s)
+            xs = np.arange(n) + (s - (m - 1) / 2) * bw
+            vals = [row[s] for row in values]
+            ax.bar(xs, vals, width=bw * 0.92, facecolor=fc, edgecolor=BLACK, hatch=hatch,
+                   linewidth=1.3, label=r["series"][s], zorder=3)
+            for x, v in zip(xs, vals):
+                ax.text(x, v + 0.012 * max(max(rw) for rw in values), f"{v:g}", ha="center",
+                        va="bottom", fontsize=7.6, rotation=90 if rotate else 0)
+        ax.set_xticks(range(n))
+        ax.set_xticklabels(["\n".join(wrap(l, 1.0, 9.5, max_lines=3)) for l in labels], fontsize=9.5)
+        top = max(max(rw) for rw in values)
+        head = 1.1 if top <= 100 else 1.22
+        ax.set_ylim(0, min(top * (head + (0.08 if rotate else 0)), 108) if top <= 100 else top * head)
+        if top <= 100:
+            ax.set_yticks(range(0, 101, 20))
+        ax.set_ylabel("Score (%)" if top <= 100 else "Value", fontsize=10.5)
+        if m > 1:
+            ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=m, frameon=False, fontsize=9.5,
+                      handlelength=2.4)
+        ax.yaxis.grid(True, linestyle=(0, (1, 4)), color=BLACK, linewidth=0.6, zorder=0)
+    else:
+        n = len(labels)
+        fig, ax = plt.subplots(figsize=(8.4, 0.58 * n + 1.5))
+        top = max(values)
+        for i, v in enumerate(values):
+            ax.barh(i, v, height=0.6, facecolor=WHITE, edgecolor=BLACK, hatch=HATCHES[i % len(HATCHES)],
+                    linewidth=1.4, zorder=3)
+            ax.text(v + top * 0.015, i, f"{v:g}{'%' if kind == 'percent' else ''}", va="center", fontsize=9.5)
+        ax.set_yticks(range(n))
+        ax.set_yticklabels(["\n".join(wrap(l, 2.2, 10, max_lines=2)) for l in labels], fontsize=10)
+        ax.invert_yaxis()
+        ax.set_xlim(0, top * 1.18)
+        ax.set_xlabel({"percent": "Reported value (%)", "terms": "Occurrences in the paper"}[kind],
+                      fontsize=10.5)
+        ax.tick_params(axis="y", length=0)
+        ax.xaxis.grid(True, linestyle=(0, (1, 4)), color=BLACK, linewidth=0.6, zorder=0)
+    ax.tick_params(labelsize=9.5, width=1.2)
+    despine(ax)
+    fig.tight_layout()
+    return save_all(fig, outdir, stem)
+
+
+# --------------------------------------------------------------------------
+# Fig E - conceptual framework (problem -> approach -> results -> impact)
+# --------------------------------------------------------------------------
+def fig_framework(a: Analysis, outdir: Path, stem: str):
+    heads = [("PROBLEM", "problem"), ("APPROACH", "approach"), ("RESULTS", "results"), ("IMPACT", "impact")]
+    bw, hh, gx, m = 2.65, 0.55, 0.6, 0.35
+    fs = 9.4
+    lh = fs * 1.34 / 72
+    wrapped = {k: wrap(a.abstract_parts.get(k, ""), bw - 0.38, fs, max_lines=13) for _, k in heads}
+    bh = hh + 0.45 + max(len(v) for v in wrapped.values()) * lh
+    bh = max(bh, 2.3)
+    W, H = 4 * bw + 3 * gx + 2 * m, bh + 2 * m
+    fig, ax = canvas(W, H)
+    for i, (title, key) in enumerate(heads):
+        x, y = m + i * (bw + gx), m
+        ax.add_patch(Rectangle((x, y), bw, bh, fc=WHITE, ec=BLACK, lw=1.9, zorder=2))
+        ax.add_patch(Rectangle((x, y + bh - hh), bw, hh, fc=BLACK, ec=BLACK, lw=1.9, zorder=3))
+        ax.text(x + bw / 2, y + bh - hh / 2, title, color=WHITE, ha="center", va="center",
+                fontsize=12, fontweight="bold", zorder=4)
+        lines = wrapped[key]
+        for k, ln in enumerate(lines):
+            ax.text(x + 0.19, y + bh - hh - 0.2 - k * lh, ln, ha="left", va="top", fontsize=fs, zorder=4)
+        if i < 3:
+            arrow(ax, (x + bw + 0.04, y + bh / 2 - hh / 2), (x + bw + gx - 0.04, y + bh / 2 - hh / 2),
+                  lw=2.2, ms=18)
+    return save_all(fig, outdir, stem)
+
+
+# --------------------------------------------------------------------------
+# Public entry point
+# --------------------------------------------------------------------------
+BUILDERS = [
+    ("structure", fig_structure),
+    ("concepts", fig_concepts),
+    ("workflow", fig_workflow),
+    ("results", fig_results),
+    ("framework", fig_framework),
+]
+
+
+def make_all(a: Analysis, outdir: str | Path) -> Dict[str, Dict[str, str]]:
+    outdir = Path(outdir)
+    made = {}
+    for key, fn in BUILDERS:
+        made[key] = fn(a, outdir, f"fig_{key}")
+    return made
+</script>
+<script type="text/plain" id="src-pipeline">"""
+pipeline.py
+-----------
+Glues the three stages together:
+
+    paper_parser.parse_paper  ->  analyzer.analyze  ->  diagram_maker.make_all
+
+and adds the "where does this figure go?" advice (using the *actual* headings
+found in the uploaded paper) plus a self-contained HTML report builder.
+
+CLI:  python pipeline.py paper.pdf [output_dir]
+"""
+from __future__ import annotations
+
+import base64
+import html
+import json
+import sys
+from pathlib import Path
+from typing import Dict, List
+
+from analyzer import Analysis, analyze, trim
+from diagram_maker import make_all
+from paper_parser import CANON_LABEL, Paper, parse_paper
+
+
+def _placement(paper: Paper, canon: str, fallback: str | None, position: str, reason: str) -> Dict:
+    sec = paper.first(canon) or (paper.first(fallback) if fallback else None)
+    if sec:
+        where, found = sec.heading, True
+    else:
+        where, found = f"{CANON_LABEL[canon]} (no matching heading found)", False
+    return {"section": where, "section_found": found, "position": position, "reason": reason}
+
+
+def build_figures(paper: Paper, a: Analysis, files: Dict[str, Dict[str, str]]) -> List[Dict]:
+    kind = a.results["kind"]
+    steps_txt = " → ".join(trim(s["title"], 28) for s in a.steps)
+    top_terms = ", ".join(c["label"] for c in sorted(a.concepts, key=lambda c: -c["freq"])[:3])
+
+    results_caption = {
+        "table": "Comparison of the evaluated methods across the reported metrics ("
+                 + ", ".join(a.results.get("series", [])) + ").",
+        "percent": "Key quantitative outcomes reported in the paper (values in %).",
+        "terms": "Most frequent technical terms in the paper (no numeric results table was detected).",
+    }[kind]
+
+    specs = [
+        ("structure", "Paper structure overview",
+         _placement(paper, "introduction", None,
+                    "End of the section, next to the paragraph that outlines how the paper is organised.",
+                    "Gives readers a quick map of how the manuscript's effort is distributed."),
+         "Distribution of the manuscript's content across its main sections (number of words)."),
+        ("concepts", "Key-concept map",
+         _placement(paper, "related_work", "introduction",
+                    "After the first paragraph that introduces the background / key terminology.",
+                    f"Shows how the core concepts ({top_terms}) relate to each other before the "
+                    "method is described."),
+         "Concept map of the key terms used in the paper; line thickness shows how often two concepts "
+         "co-occur."),
+        ("workflow", "Methodology workflow",
+         _placement(paper, "methodology", None,
+                    "At the very start of the section, before the detailed description of each step.",
+                    "A flow diagram lets the reader see the whole procedure before reading the details "
+                    f"(steps taken from the {a.steps_source})."),
+         f"Workflow of the proposed approach: {steps_txt}."),
+        ("results", "Results chart",
+         _placement(paper, "results", "discussion",
+                    "Directly after the paragraph that first discusses the numbers.",
+                    "Makes the quantitative findings comparable at a glance."
+                    + ("" if kind == "table" else
+                       " (No clean results table could be parsed, so this figure is built from the "
+                       + ("percentages quoted in the text." if kind == "percent"
+                          else "most frequent terms."))),
+         results_caption),
+        ("framework", "Conceptual framework / graphical summary",
+         _placement(paper, "conclusion", "discussion",
+                    "Near the start of the section as a one-glance summary "
+                    "(it can also be used as the graphical abstract).",
+                    "Condenses problem → approach → results → impact into a single figure."),
+         "Conceptual framework summarising the problem addressed, the proposed approach, the main "
+         "results and their impact."),
+    ]
+    figs = []
+    for n, (key, title, place, caption) in enumerate(specs, 1):
+        figs.append({"id": key, "number": n, "title": title, "caption": caption,
+                     "placement": place, "files": files[key]})
+    return figs
+
+
+def run_pipeline(path: str | Path, outdir: str | Path) -> Dict:
+    outdir = Path(outdir)
+    paper = parse_paper(path)
+    a = analyze(paper)
+    files = make_all(a, outdir)
+    result = {
+        "title": paper.title,
+        "keywords": paper.keywords,
+        "pages": paper.pages,
+        "total_words": a.total_words,
+        "sections": [{"heading": s.heading, "canon": CANON_LABEL.get(s.canon, s.canon),
+                      "words": s.word_count} for s in paper.sections
+                     if s.canon not in ("front",) and s.word_count > 0],
+        "figures": build_figures(paper, a, files),
+    }
+    (outdir / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
+# --------------------------------------------------------------------------
+# Single-file HTML report (all diagrams embedded) - "merge into one HTML"
+# --------------------------------------------------------------------------
+REPORT_CSS = """
+body{font-family:Georgia,'Times New Roman',serif;color:#000;background:#fff;max-width:980px;
+margin:0 auto;padding:40px 28px;line-height:1.5}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;border-bottom:2px solid #000;padding-bottom:4px;margin-top:44px}
+.meta{font-size:14px;margin-bottom:26px}.fig{margin:26px 0 38px;page-break-inside:avoid}
+.fig img{max-width:100%;border:1.5px solid #000;padding:10px;box-sizing:border-box}
+.cap{font-size:14px;margin:8px 0}table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{border:1.5px solid #000;padding:6px 10px;text-align:left;vertical-align:top}th{background:#000;color:#fff}
+.tag{display:inline-block;border:1.5px solid #000;padding:1px 9px;font-weight:bold}
+"""
+
+
+def build_report_html(result: Dict, outdir: str | Path) -> str:
+    outdir = Path(outdir)
+    e = html.escape
+    rows, blocks = [], []
+    for f in result["figures"]:
+        b64 = base64.b64encode((outdir / f["files"]["png"]).read_bytes()).decode()
+        p = f["placement"]
+        rows.append(f"<tr><td>Fig. {f['number']}</td><td>{e(f['title'])}</td><td>{e(p['section'])}</td>"
+                    f"<td>{e(p['position'])}</td></tr>")
+        blocks.append(
+            f"<div class='fig'><div class='tag'>Fig. {f['number']} — {e(f['title'])}</div>"
+            f"<p class='cap'><b>Insert in:</b> {e(p['section'])} — {e(p['position'])}</p>"
+            f"<img alt='{e(f['title'])}' src='data:image/png;base64,{b64}'>"
+            f"<p class='cap'><b>Suggested caption:</b> Fig. {f['number']}. {e(f['caption'])}</p>"
+            f"<p class='cap'><i>Why here:</i> {e(p['reason'])}</p></div>")
+    kw = ", ".join(result["keywords"]) or "—"
+    return (f"<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+            f"<title>Diagrams for: {e(result['title'])}</title><style>{REPORT_CSS}</style></head><body>"
+            f"<h1>{e(result['title'])}</h1>"
+            f"<div class='meta'>Keywords: {e(kw)} &nbsp;|&nbsp; {result['total_words']:,} words analysed</div>"
+            f"<h2>Where each diagram goes</h2><table><tr><th>No.</th><th>Diagram</th><th>Section</th>"
+            f"<th>Position</th></tr>{''.join(rows)}</table>"
+            f"<h2>Diagrams</h2>{''.join(blocks)}</body></html>")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        sys.exit("usage: python pipeline.py paper.pdf [output_dir]")
+    out = Path(sys.argv[2] if len(sys.argv) > 2 else "cli_output")
+    res = run_pipeline(sys.argv[1], out)
+    (out / "report.html").write_text(build_report_html(res, out), encoding="utf-8")
+    print(f"Title: {res['title']}")
+    for f in res["figures"]:
+        print(f"  Fig {f['number']}: {f['title']:<42} -> {f['placement']['section']}")
+    print(f"\nFiles written to: {out.resolve()}  (open report.html)")
+</script>
+<script type="text/plain" id="src-web_entry">"""
+web_entry.py - tiny glue used by the single-file HTML version (runs inside Pyodide).
+JavaScript calls these three functions; everything else lives in the other scripts.
+"""
+from __future__ import annotations
+
+import json
+import shutil
+import zipfile
+from pathlib import Path
+
+from pipeline import build_report_html, run_pipeline
+
+
+def analyze_file(path: str, outdir: str) -> str:
+    out = Path(outdir)
+    shutil.rmtree(out, ignore_errors=True)
+    return json.dumps(run_pipeline(path, out))
+
+
+def make_report(outdir: str) -> str:
+    d = Path(outdir)
+    result = json.loads((d / "result.json").read_text(encoding="utf-8"))
+    return build_report_html(result, d)
+
+
+def make_zip(outdir: str) -> str:
+    d = Path(outdir)
+    target = d / "all.zip"
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
+        for p in sorted(d.glob("fig_*")):
+            z.write(p, p.name)
+        z.writestr("paper_diagrams_report.html", make_report(outdir))
+    return str(target)
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/";
+const PY_FILES = ["paper_parser", "analyzer", "diagram_maker", "pipeline", "web_entry"];
+const MIME = { png: "image/png", svg: "image/svg+xml", pdf: "application/pdf" };
+let pyodide = null, web = null, docxReady = false, jobN = 0, chosen = null, engineReady = false;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tick = () => new Promise(r => setTimeout(r, 40));
+
+function setEngine(msg, ok) { $('engine').textContent = msg; $('engine').classList.toggle('ok', !!ok); }
+function setBar(msg) { $('barText').textContent = msg; }
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = src; s.onload = res;
+    s.onerror = () => rej(new Error('Could not load the Python engine from ' + src + '. Check your internet connection and try again.'));
+    document.head.appendChild(s);
+  });
+}
+function refreshButton() { $('go').disabled = !(engineReady && chosen); }
+
+async function boot() {
+  try {
+    setEngine('Loading Python engine (first visit only, about 30–60 s)…');
+    await loadScript(PYODIDE + 'pyodide.js');
+    pyodide = await loadPyodide({ indexURL: PYODIDE });
+    setEngine('Loading numpy, matplotlib and Pillow…');
+    await pyodide.loadPackage(['numpy', 'matplotlib', 'pillow', 'micropip']);
+    setEngine('Installing the PDF reader…');
+    await pyodide.pyimport('micropip').install('pypdf');
+    pyodide.FS.mkdirTree('/app');
+    for (const n of PY_FILES) pyodide.FS.writeFile('/app/' + n + '.py', $('src-' + n).textContent);
+    pyodide.runPython('import sys\nsys.path.insert(0, "/app")');
+    web = pyodide.pyimport('web_entry');
+    engineReady = true;
+    setEngine('Python engine ready ✓', true);
+  } catch (e) {
+    setEngine('Python engine failed to load');
+    showError(e.message || String(e));
+  }
+  refreshButton();
+}
+
+function showError(msg) {
+  const lines = String(msg).trim().split('\n');
+  $('err').textContent = lines[lines.length - 1] || msg;
+  $('err').style.display = 'block';
+  console.error(msg);
+}
+
+function pick(f) {
+  chosen = f;
+  $('dropTitle').textContent = f ? f.name : 'Click to choose a paper, or drop it here';
+  refreshButton();
+}
+$('file').addEventListener('change', e => pick(e.target.files[0] || null));
+['dragenter', 'dragover'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
+$('drop').addEventListener('drop', e => { if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]); });
+
+async function analyze(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['pdf', 'docx', 'txt'].includes(ext)) throw new Error('Unsupported file type. Upload a PDF, DOCX or TXT file.');
+  if (ext === 'docx' && !docxReady) {
+    setBar('Installing the Word reader…'); await tick();
+    await pyodide.loadPackage('lxml');
+    await pyodide.pyimport('micropip').install('python-docx');
+    docxReady = true;
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  pyodide.FS.mkdirTree('/work');
+  const src = '/work/paper.' + ext, out = '/work/out' + (++jobN);
+  pyodide.FS.writeFile(src, bytes);
+
+  setBar('Reading the paper, extracting concepts and drawing the diagrams (this can take 10–40 s)…'); await tick();
+  const d = JSON.parse(web.analyze_file(src, out));
+
+  for (const f of d.figures) {
+    f.urls = {};
+    for (const k of ['png', 'svg', 'pdf']) {
+      f.urls[k] = URL.createObjectURL(new Blob([pyodide.FS.readFile(out + '/' + f.files[k])], { type: MIME[k] }));
+    }
+  }
+  d.reportUrl = URL.createObjectURL(new Blob([web.make_report(out)], { type: 'text/html' }));
+  const zipPath = web.make_zip(out);
+  d.zipUrl = URL.createObjectURL(new Blob([pyodide.FS.readFile(zipPath)], { type: 'application/zip' }));
+  d.filename = file.name;
+  return d;
+}
+
+$('go').addEventListener('click', async () => {
+  if (!chosen || !engineReady) return;
+  $('err').style.display = 'none'; $('out').style.display = 'none';
+  $('bar').style.display = 'block'; $('go').disabled = true;
+  setBar('Preparing…'); await tick();
+  try {
+    render(await analyze(chosen));
+  } catch (e) {
+    showError(e.message || String(e));
+  } finally {
+    $('bar').style.display = 'none'; refreshButton();
+  }
+});
+
+function render(d) {
+  $('pTitle').textContent = d.title;
+  $('pMeta').textContent = `${d.filename} · ${d.total_words.toLocaleString()} words analysed` +
+    (d.pages ? ` · ${d.pages} pages` : '') + (d.keywords.length ? ` · Keywords: ${d.keywords.join(', ')}` : '');
+  $('pChips').innerHTML = d.sections.map(s => `<span class="chip" title="${s.words} words">${esc(s.heading)}</span>`).join('');
+  $('dlReport').href = d.reportUrl;
+  $('dlZip').href = d.zipUrl;
+
+  $('plan').innerHTML = '<tr><th>No.</th><th>Diagram</th><th>Insert in section</th><th>Position</th></tr>' +
+    d.figures.map(f => `<tr><td>Fig. ${f.number}</td><td>${esc(f.title)}</td>
+      <td>${esc(f.placement.section)}${f.placement.section_found ? '' : ' ⚠'}</td><td>${esc(f.placement.position)}</td></tr>`).join('');
+
+  $('figs').innerHTML = d.figures.map((f, i) => `
+    <div class="fig">
+      <div class="head"><span class="num">Fig. ${f.number}</span><span class="ttl">${esc(f.title)}</span></div>
+      <div class="place"><b>Insert in:</b> ${esc(f.placement.section)}<br><b>Position:</b> ${esc(f.placement.position)}<br><i>${esc(f.placement.reason)}</i></div>
+      <div class="imgbox"><img alt="${esc(f.title)}" src="${f.urls.png}"></div>
+      <div class="cap"><b>Suggested caption:</b> Fig. ${f.number}. ${esc(f.caption)}</div>
+      <div class="row">
+        <a class="btn" href="${f.urls.png}" download="fig_${f.id}.png">PNG (300 dpi)</a>
+        <a class="btn" href="${f.urls.svg}" download="fig_${f.id}.svg">SVG</a>
+        <a class="btn" href="${f.urls.pdf}" download="fig_${f.id}.pdf">PDF</a>
+        <button type="button" data-cap="${i}">Copy caption</button>
+      </div>
+    </div>`).join('');
+  document.querySelectorAll('button[data-cap]').forEach(b => b.addEventListener('click', () => {
+    const f = d.figures[+b.dataset.cap];
+    navigator.clipboard.writeText(`Fig. ${f.number}. ${f.caption}`).then(() => { b.textContent = 'Copied'; });
+  }));
+  $('out').style.display = 'block';
+  $('out').scrollIntoView({ behavior: 'smooth' });
+}
+
+// list the embedded scripts so they can be read / saved as .py files
+$('scripts').innerHTML = PY_FILES.map(n => {
+  const text = $('src-' + n).textContent;
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/x-python' }));
+  return `<details><summary>${n}.py <span style="font-weight:normal">(${text.split('\n').length} lines)</span></summary>
+    <div style="padding:8px 12px"><a class="btn" href="${url}" download="${n}.py">Download ${n}.py</a></div>
+    <pre>${esc(text)}</pre></details>`;
+}).join('');
+
+// Disable the browser's right-click (context) menu on this page
+function disableRightClick() {
+  document.addEventListener('contextmenu', e => e.preventDefault());
+}
+disableRightClick();
+
+boot();
+</script>
+</body>
+</html>
